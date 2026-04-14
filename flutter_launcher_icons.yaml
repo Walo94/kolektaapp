@@ -1,0 +1,31 @@
+# flutter_launcher_icons.yaml
+# Coloca este archivo en la raíz del proyecto (junto a pubspec.yaml)
+#
+# Luego ejecuta:
+#   flutter pub add --dev flutter_launcher_icons
+#   dart run flutter_launcher_icons
+
+flutter_launcher_icons:
+  # ── Android ──────────────────────────────────────────────────────────────
+  android: true
+  # Ícono adaptativo (Android 8+): usa el logo sobre fondo negro
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/images/logo.png"
+
+  # ── iOS ───────────────────────────────────────────────────────────────────
+  ios: true
+  remove_alpha_ios: true   # App Store rechaza íconos con transparencia
+
+  # ── Fuente de la imagen ───────────────────────────────────────────────────
+  image_path: "assets/images/logo.png"
+
+  # ── Web (opcional) ────────────────────────────────────────────────────────
+  web:
+    generate: true
+    image_path: "assets/images/logo.png"
+    background_color: "#000000"
+    theme_color: "#1565C0"
+
+  # ── Windows (opcional) ────────────────────────────────────────────────────
+  windows:
+    generate: false
