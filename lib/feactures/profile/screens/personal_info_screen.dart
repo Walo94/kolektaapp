@@ -5,6 +5,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/kolekta_colors.dart';
 import '../../admin/providers/auth_provider.dart';
+import '../providers/subscription_provider.dart';
+import '../../../core/constants/app_routes.dart';
+import 'package:go_router/go_router.dart';
 
 class PersonalInfoScreen extends StatelessWidget {
   const PersonalInfoScreen({super.key});
@@ -112,7 +115,7 @@ class PersonalInfoScreen extends StatelessWidget {
                     AppTextStyles.headingSmall.copyWith(color: c.textPrimary)),
             const SizedBox(height: 12),
 
-            _AccountPlanCard(isPremium: user?.userAccount == 'premium'),
+            _AccountPlanCard(),
 
             const SizedBox(height: 28),
 
@@ -292,14 +295,13 @@ class _VerifiedBadge extends StatelessWidget {
 
 /// Tarjeta de plan de cuenta (gratuito / premium)
 class _AccountPlanCard extends StatelessWidget {
-  const _AccountPlanCard({required this.isPremium});
-  final bool isPremium;
+  const _AccountPlanCard({super.key});
 
   @override
   Widget build(BuildContext context) {
     final c = context.kolekta;
-    final color = isPremium ? AppColors.orange : AppColors.primary;
-    final bgColor = isPremium ? c.orangeLight : c.primarySurface;
+    final sub = context.watch<SubscriptionProvider>();   // ← Usamos SubscriptionProvider
+    final bool isPremium = sub.hasActiveSubscription;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -316,12 +318,12 @@ class _AccountPlanCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: bgColor,
+              color: isPremium ? c.orangeLight : c.primarySurface,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
               isPremium ? Icons.star_rounded : Icons.star_border_rounded,
-              color: color,
+              color: isPremium ? AppColors.orange : AppColors.primary,
               size: 26,
             ),
           ),
@@ -332,39 +334,37 @@ class _AccountPlanCard extends StatelessWidget {
               children: [
                 Text(
                   isPremium ? 'Miembro Premium' : 'Plan Gratuito',
-                  style: AppTextStyles.labelLarge
-                      .copyWith(color: c.textPrimary),
+                  style: AppTextStyles.labelLarge.copyWith(color: c.textPrimary),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   isPremium
                       ? 'Acceso a todas las funciones sin límites'
-                      : 'Actualiza para desbloquear funciones avanzadas',
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: c.textSecondary),
+                      : 'Actualiza para crear ilimitadamente rifas, tandas y más',
+                  style: AppTextStyles.bodySmall.copyWith(color: c.textSecondary),
                 ),
               ],
             ),
           ),
-          if (!isPremium) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.orange,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text(
-                'Mejorar',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
+          if (!isPremium)
+            GestureDetector(
+              onTap: () => context.push(AppRoutes.subscription),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: AppColors.orange,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'Actualizar',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
-          ],
         ],
       ),
     );

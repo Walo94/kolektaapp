@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/kolekta_colors.dart';
-import '../../../core/constants/app_routes.dart';
 import '../../../core/utils/theme_provider.dart';
+import '../../admin/providers/auth_provider.dart';
 import '../../modules/providers/batch_provider.dart';
 import '../../modules/providers/catalog_provider.dart';
 import '../../modules/providers/giveaway_provider.dart';
-import '../../admin/providers/auth_provider.dart';
+import '../../profile/providers/notification_provider.dart';
+import '../../profile/providers/subscription_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.onNavigate});
@@ -31,11 +34,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final token = context.read<AuthProvider>().token;
     if (token == null) return;
 
-    // Cargar conteos de los tres módulos en paralelo
     await Future.wait([
       context.read<BatchProvider>().loadActiveBatchsCount(token),
       context.read<CatalogProvider>().loadSales(token, silent: true),
       context.read<GiveawayProvider>().loadOpenCount(token),
+      context.read<NotificationProvider>().refreshUnreadCount(token),
     ]);
   }
 
@@ -44,7 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final c = context.kolekta;
 
     final activeBatchsCount = context.watch<BatchProvider>().activeBatchsCount;
-    final pendingCount      = context.watch<CatalogProvider>().pendingCount;
+    final pendingCount = context.watch<CatalogProvider>().pendingCount;
     final openGiveawayCount = context.watch<GiveawayProvider>().openCount;
 
     return Scaffold(
@@ -56,36 +59,34 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              _HomeHeader(),
-              const SizedBox(height: 20),
+              const _HomeHeader(),
+              const SizedBox(height: 32),
               Text('Acciones rápidas',
                   style: AppTextStyles.headingSmall
                       .copyWith(color: c.textPrimary)),
-              const SizedBox(height: 12),
-              _QuickActions(),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              _QuickActions(
+                onCreatePressed: () => _showCreateSheet(context),
+              ),
+              const SizedBox(height: 32),
               Text('Tus herramientas',
                   style: AppTextStyles.headingSmall
                       .copyWith(color: c.textPrimary)),
               const SizedBox(height: 12),
               _ToolCard(
-                icon: Icons.sync_alt_rounded,
-                iconBgColor: c.purpleLight,
-                iconColor: AppColors.purple,
+                iconPath: 'assets/images/batch.png',
                 title: 'Tandas',
                 subtitle:
                     'Gestiona turnos y aportaciones grupales con facilidad',
                 badgeText: _activeBatchBadge(activeBatchsCount),
-                badgeColor: AppColors.purple,
+                badgeColor: AppColors.primaryLight,
                 buttonLabel: 'Gestionar',
                 buttonColor: AppColors.primary,
                 onTap: () => widget.onNavigate?.call(AppRoutes.batchs),
               ),
               const SizedBox(height: 12),
               _ToolCard(
-                icon: Icons.shopping_bag_outlined,
-                iconBgColor: c.greenLight,
-                iconColor: AppColors.green,
+                iconPath: 'assets/images/catalog.png',
                 title: 'Catálogo',
                 subtitle: 'Controla pedidos grupales y pagos pendientes',
                 badgeText: _pendingCatalogBadge(pendingCount),
@@ -96,35 +97,24 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
               _ToolCard(
-                icon: Icons.help_outline_rounded,
-                iconBgColor: c.pinkLight,
-                iconColor: AppColors.pink,
+                iconPath: 'assets/images/giveaway.png',
                 title: 'Rifas',
-                subtitle:
-                    'Administra números, sorteos y ganadores fácilmente',
+                subtitle: 'Administra números, sorteos y ganadores fácilmente',
                 badgeText: _openGiveawayBadge(openGiveawayCount),
                 badgeColor: AppColors.pink,
                 buttonLabel: 'Gestionar',
                 buttonColor: AppColors.pink,
                 onTap: () => widget.onNavigate?.call(AppRoutes.giveaways),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
             ],
           ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreateSheet(context),
-        backgroundColor: AppColors.orange,
-        foregroundColor: Colors.white,
-        elevation: 4,
-        child: const Icon(Icons.add_rounded, size: 28),
       ),
     );
   }
 
   // ── Badge helpers ──────────────────────────────────────────────────────────
-
   String _activeBatchBadge(int count) {
     if (count == 0) return 'Sin tandas activas';
     if (count == 1) return '1 activa';
@@ -155,108 +145,176 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// ── Header ─────────────────────────────────────────────────────────────────────
+// ── Header Centrado ─────────────────────────────────────────────────────────
 
 class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.kolekta;
+    final firstName =
+        context.watch<AuthProvider>().displayName.split(' ').first;
+
+    return Center(
+      child: Column(
+        children: [
+          Text(
+            'Hola, $firstName',
+            style: AppTextStyles.displayMedium.copyWith(color: c.textPrimary),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '¿Qué quieres gestionar hoy?',
+            style: AppTextStyles.bodySmall.copyWith(color: c.textSecondary),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Quick Actions ───────────────────────────────────────────────────────────
+
+class _QuickActions extends StatelessWidget {
+  final VoidCallback onCreatePressed;
+
+  const _QuickActions({required this.onCreatePressed, super.key});
+
   @override
   Widget build(BuildContext context) {
     final c = context.kolekta;
     final themeProvider = context.watch<ThemeProvider>();
     final isDark = themeProvider.isDark;
-    final firstName = context
-        .watch<AuthProvider>()
-        .displayName
-        .split(' ')
-        .first;
 
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Hola, $firstName',
-                  style: AppTextStyles.displayMedium
-                      .copyWith(color: c.textPrimary)),
-              const SizedBox(height: 2),
-              Text('¿Qué quieres gestionar hoy?',
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: c.textSecondary)),
-            ],
-          ),
+        // Crear
+        _QuickActionItem(
+          iconPath: 'assets/images/add.png',
+          label: 'Crear',
+          color: c.primarySurface,
+          onTap: onCreatePressed,
         ),
-        GestureDetector(
-          onTap: () => themeProvider.toggle(),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: c.primarySurface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: c.border, width: 1.5),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Image.asset(
-                isDark
-                    ? 'assets/images/light_off.png'
-                    : 'assets/images/light_turn.png',
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
+        // Enviar
+        _QuickActionItem(
+          iconPath: 'assets/images/send.png',
+          label: 'Enviar',
+          color: c.greenLight,
+          onTap: () {}, // TODO: implementar enviar
+        ),
+        // Tema
+        _QuickActionItem(
+          iconPath: isDark
+              ? 'assets/images/light_off.png'
+              : 'assets/images/light_turn.png',
+          label: 'Tema',
+          color: c.orangeLight,
+          onTap: themeProvider.toggle,
+        ),
+        // Notificaciones
+        Consumer<NotificationProvider>(
+          builder: (context, notifProvider, _) {
+            return _QuickActionItem(
+              iconPath: 'assets/images/bell.png',
+              label: 'Notificaciones',
+              color: c.pinkLight,
+              onTap: () => context.push(AppRoutes.notifications),
+              badge: notifProvider.unreadCount,
+            );
+          },
         ),
       ],
     );
   }
 }
 
-// ── Quick actions ───────────────────────────────────────────────────────────────
+class _QuickActionItem extends StatelessWidget {
+  final String iconPath;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  final int? badge;
 
-class _QuickActions extends StatelessWidget {
+  const _QuickActionItem({
+    required this.iconPath,
+    required this.label,
+    required this.color,
+    required this.onTap,
+    this.badge,
+    super.key,
+  });
+
   @override
   Widget build(BuildContext context) {
     final c = context.kolekta;
-    final actions = [
-      (icon: Icons.add_circle_outline_rounded, label: 'Crear',     color: c.primarySurface, iconColor: AppColors.primary),
-      (icon: Icons.send_rounded,               label: 'Enviar',    color: c.greenLight,     iconColor: AppColors.green),
-      (icon: Icons.download_rounded,           label: 'Recibir',   color: c.pinkLight,      iconColor: AppColors.pink),
-      (icon: Icons.history_rounded,            label: 'Historial', color: c.orangeLight,    iconColor: AppColors.orange),
-    ];
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: actions.map((a) {
-        return Column(
-          children: [
-            Container(
-              width: 58,
-              height: 58,
-              decoration: BoxDecoration(
-                color: a.color,
-                borderRadius: BorderRadius.circular(16),
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Image.asset(iconPath, fit: BoxFit.contain),
+                ),
               ),
-              child: Icon(a.icon, color: a.iconColor, size: 26),
-            ),
-            const SizedBox(height: 6),
-            Text(a.label,
-                style: AppTextStyles.labelSmall
-                    .copyWith(color: c.textSecondary)),
-          ],
-        );
-      }).toList(),
+              if (badge != null && badge! > 0)
+                Positioned(
+                  right: -4,
+                  top: -4,
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints:
+                        const BoxConstraints(minWidth: 20, minHeight: 20),
+                    child: Center(
+                      child: Text(
+                        badge! > 99 ? '99+' : badge.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: AppTextStyles.labelSmall.copyWith(color: c.textSecondary),
+          ),
+        ],
+      ),
     );
   }
 }
 
-// ── Tool card ───────────────────────────────────────────────────────────────────
+// ── Tool Card ───────────────────────────────────────────────────────────────
+
+// ── Tool Card ───────────────────────────────────────────────────────────────
 
 class _ToolCard extends StatelessWidget {
   const _ToolCard({
-    required this.icon,
-    required this.iconBgColor,
-    required this.iconColor,
+    required this.iconPath,
     required this.title,
     required this.subtitle,
     required this.badgeText,
@@ -266,9 +324,7 @@ class _ToolCard extends StatelessWidget {
     required this.onTap,
   });
 
-  final IconData icon;
-  final Color iconBgColor;
-  final Color iconColor;
+  final String iconPath;
   final String title;
   final String subtitle;
   final String badgeText;
@@ -280,6 +336,16 @@ class _ToolCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.kolekta;
+
+    // Definimos el color de fondo según la herramienta
+    Color backgroundColor;
+    if (iconPath.contains('batch')) {
+      backgroundColor = c.purpleLight;
+    } else if (iconPath.contains('catalog')) {
+      backgroundColor = c.greenLight;
+    } else {
+      backgroundColor = c.pinkLight; // para rifas
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -299,14 +365,22 @@ class _ToolCard extends StatelessWidget {
         children: [
           Row(
             children: [
+              // ← Fondo de color suave como en el Profile
               Container(
-                width: 48,
-                height: 48,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
-                  color: iconBgColor,
+                  color: backgroundColor,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(icon, color: iconColor, size: 24),
+                child: Center(
+                  child: Image.asset(
+                    iconPath,
+                    width: 34,
+                    height: 34,
+                    fit: BoxFit.contain,
+                  ),
+                ),
               ),
               const Spacer(),
               Container(
@@ -316,25 +390,26 @@ class _ToolCard extends StatelessWidget {
                   color: badgeColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(badgeText,
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: badgeColor)),
+                child: Text(
+                  badgeText,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: badgeColor,
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Text(title,
-              style: AppTextStyles.headingSmall
-                  .copyWith(color: c.textPrimary)),
+              style: AppTextStyles.headingSmall.copyWith(color: c.textPrimary)),
           const SizedBox(height: 4),
           Text(subtitle,
-              style:
-                  AppTextStyles.bodySmall.copyWith(color: c.textSecondary),
+              style: AppTextStyles.bodySmall.copyWith(color: c.textSecondary),
               maxLines: 2,
               overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           SizedBox(
             height: 40,
             child: ElevatedButton(
@@ -365,7 +440,7 @@ class _ToolCard extends StatelessWidget {
   }
 }
 
-// ── Create sheet ────────────────────────────────────────────────────────────────
+// ── Create Sheet ────────────────────────────────────────────────────────────
 
 class _CreateSheet extends StatelessWidget {
   const _CreateSheet({this.onNavigate});
@@ -375,27 +450,38 @@ class _CreateSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.kolekta;
+    final subProvider = context.watch<SubscriptionProvider>();
+    final bool isPremium = subProvider.hasActiveSubscription;
+
+    // Contadores actuales de items activos
+    final activeBatchs = context.watch<BatchProvider>().activeBatchsCount;
+    final pendingSales = context.watch<CatalogProvider>().pendingCount;
+    final openGiveaways = context.watch<GiveawayProvider>().openCount;
+
     final options = [
       (
-        icon: Icons.sync_alt_rounded,
+        iconPath: 'assets/images/batch.png',
         color: AppColors.purple,
-        bg: c.purpleLight,
         label: 'Nueva Tanda',
         route: AppRoutes.createBatch,
+        isBlocked: !isPremium && activeBatchs >= 1,
+        blockedMessage: 'Límite de 1 tanda activa alcanzado.\nActualiza a Premium.',
       ),
       (
-        icon: Icons.shopping_bag_outlined,
+        iconPath: 'assets/images/catalog.png',
         color: AppColors.green,
-        bg: c.greenLight,
-        label: 'Nueva Venta',           // ← antes: "Nuevo Catálogo"
-        route: AppRoutes.createSale,    // ← ruta correcta para crear venta
+        label: 'Nueva Venta',
+        route: AppRoutes.createSale,
+        isBlocked: !isPremium && pendingSales >= 1,
+        blockedMessage: 'Límite de 1 venta activa alcanzado.\nActualiza a Premium.',
       ),
       (
-        icon: Icons.help_outline_rounded,
+        iconPath: 'assets/images/giveaway.png',
         color: AppColors.pink,
-        bg: c.pinkLight,
         label: 'Nueva Rifa',
-        route: AppRoutes.createGiveaway, // ← antes: '/rifas' (incorrecto)
+        route: AppRoutes.createGiveaway,
+        isBlocked: !isPremium && openGiveaways >= 1,
+        blockedMessage: 'Límite de 1 rifa activa alcanzado.\nActualiza a Premium.',
       ),
     ];
 
@@ -403,7 +489,6 @@ class _CreateSheet extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Center(
             child: Container(
@@ -413,34 +498,71 @@ class _CreateSheet extends StatelessWidget {
                   color: c.border, borderRadius: BorderRadius.circular(2)),
             ),
           ),
+          const SizedBox(height: 24),
+          Text(
+            '¿Qué deseas crear?',
+            style: AppTextStyles.headingMedium.copyWith(color: c.textPrimary),
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 20),
-          Text('¿Qué deseas crear?',
-              style: AppTextStyles.headingMedium
-                  .copyWith(color: c.textPrimary)),
-          const SizedBox(height: 16),
           ...options.map((o) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: ListTile(
                   leading: Container(
-                    width: 44,
-                    height: 44,
+                    width: 52,
+                    height: 52,
                     decoration: BoxDecoration(
-                        color: o.bg,
-                        borderRadius: BorderRadius.circular(12)),
-                    child: Icon(o.icon, color: o.color),
+                      color: o.color.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Center(
+                      child: Image.asset(
+                        o.iconPath,
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
-                  title: Text(o.label,
-                      style: AppTextStyles.labelLarge
-                          .copyWith(color: c.textPrimary)),
-                  trailing:
-                      Icon(Icons.chevron_right_rounded, color: c.textHint),
+                  title: Text(
+                    o.label,
+                    style: AppTextStyles.labelLarge.copyWith(
+                      color: o.isBlocked ? c.textHint : c.textPrimary,
+                    ),
+                  ),
+                  subtitle: o.isBlocked
+                      ? Text(
+                          o.blockedMessage,
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.error,
+                          ),
+                        )
+                      : null,
+                  trailing: o.isBlocked
+                      ? const Icon(Icons.lock_rounded, color: AppColors.error)
+                      : Icon(Icons.chevron_right_rounded, color: c.textHint),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                   tileColor: c.surfaceVariant,
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    onNavigate?.call(o.route);
-                  },
+                  onTap: o.isBlocked
+                      ? () {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Has alcanzado el límite de tu plan actual. '
+                                'Actualiza a Premium para crear más.',
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                              backgroundColor: AppColors.error,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      : () {
+                          Navigator.of(context).pop();
+                          onNavigate?.call(o.route);
+                        },
                 ),
               )),
           const SizedBox(height: 8),

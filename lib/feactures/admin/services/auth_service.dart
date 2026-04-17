@@ -7,11 +7,12 @@ class AuthUser {
   final String fullName;
   final String email;
   final String? phone;
-  final String userAccount;
+  final String subscriptionPlan;
+  final DateTime? trialEndsAt;
+  final DateTime?
+      subscriptionExpiresAt;
   final bool emailVerified;
   final bool phoneVerified;
-  final bool googleProfileIncomplete;
-  final String? profilePicture;
   final String? createdAt;
 
   const AuthUser({
@@ -19,11 +20,11 @@ class AuthUser {
     required this.fullName,
     required this.email,
     this.phone,
-    required this.userAccount,
+    required this.subscriptionPlan,
+    this.trialEndsAt,
+    this.subscriptionExpiresAt,
     required this.emailVerified,
     this.phoneVerified = false,
-    this.googleProfileIncomplete = false,
-    this.profilePicture,
     this.createdAt,
   });
 
@@ -32,11 +33,16 @@ class AuthUser {
         fullName: json['fullName'] ?? '',
         email: json['email'] ?? '',
         phone: json['phone'],
-        userAccount: json['userAccount'] ?? 'free',
+        // Nuevos campos de suscripción
+        subscriptionPlan: json['subscriptionPlan'] ?? 'free',
+        trialEndsAt: json['trialEndsAt'] != null
+            ? DateTime.tryParse(json['trialEndsAt'])
+            : null,
+        subscriptionExpiresAt: json['subscriptionExpiresAt'] != null
+            ? DateTime.tryParse(json['subscriptionExpiresAt'])
+            : null,
         emailVerified: json['emailVerified'] ?? false,
         phoneVerified: json['phoneVerified'] ?? false,
-        googleProfileIncomplete: json['googleProfileIncomplete'] ?? false,
-        profilePicture: json['profilePicture'],
         createdAt: json['createdAt'],
       );
 }
@@ -46,13 +52,9 @@ class LoginResult {
   final AuthUser user;
   final String token;
 
-  /// true cuando el usuario debe completar su perfil (nombre/teléfono)
-  final bool requiresProfile;
-
   const LoginResult({
     required this.user,
     required this.token,
-    this.requiresProfile = false,
   });
 }
 
@@ -189,7 +191,6 @@ class AuthService {
   }
 
   // ── POST /profile/send-phone-code ─────────────────────
-  /// Solicita al backend que genere un OTP y lo envíe por WhatsApp.
   static Future<void> sendPhoneVerificationCode({
     required String token,
   }) async {
@@ -213,7 +214,6 @@ class AuthService {
   }
 
   // ── POST /profile/verify-phone ────────────────────────
-  /// Envía el OTP ingresado por el usuario para verificarlo.
   static Future<void> verifyPhoneCode({
     required String token,
     required String code,
@@ -236,5 +236,46 @@ class AuthService {
         body['message'] ?? body['error'] ?? 'Código incorrecto o expirado',
       );
     }
+  }
+
+  // ── NUEVO: Activar prueba gratis de 7 días ─────────────────────────────
+  static Future<void> startFreeTrial({required String token}) async {
+    final response = await http.post(
+      Uri.parse('$_base/profile/start-trial'),
+      headers: {
+        ..._headers,
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(const Duration(seconds: 15));
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        body['message'] ?? body['error'] ?? 'Error al activar la prueba gratis',
+      );
+    }
+  }
+
+  static Future<LoginResult> refreshUserInfo({required String token}) async {
+    final response = await http.get(
+      Uri.parse('$_base/profile/refresh-info'),
+      headers: {
+        ..._headers,
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(const Duration(seconds: 15));
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return LoginResult(
+        user: AuthUser.fromJson(body['user']),
+        token: token, // mantenemos el mismo token
+      );
+    }
+
+    throw Exception(
+        body['message'] ?? body['error'] ?? 'Error al refrescar usuario');
   }
 }

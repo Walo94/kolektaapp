@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kolekta/feactures/profile/services/push_notification_handler.dart';
+import 'package:kolekta/feactures/profile/providers/subscription_provider.dart';
 import '../services/auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -12,9 +13,15 @@ class AuthProvider extends ChangeNotifier {
   String? _biometricEmail;
   String? _biometricPassword;
 
+  SubscriptionProvider? _subscriptionProvider;
+
+  void attachSubscriptionProvider(SubscriptionProvider sp) {
+    _subscriptionProvider = sp;
+  }
+
   // Claves de persistencia
-  static const _keyBiometricEnabled  = 'biometric_enabled';
-  static const _keyBiometricEmail    = 'biometric_email';
+  static const _keyBiometricEnabled = 'biometric_enabled';
+  static const _keyBiometricEmail = 'biometric_email';
   static const _keyBiometricPassword = 'biometric_password';
 
   AuthProvider() {
@@ -22,29 +29,51 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // ── Getters ──────────────────────────────────────────────
-  AuthUser? get user        => _user;
-  String?   get token       => _token;
-  bool get isAuthenticated  => _token != null && _user != null;
-  bool get loading          => _loading;
-  String? get errorMessage  => _errorMessage;
+  AuthUser? get user => _user;
+  String? get token => _token;
+  bool get isAuthenticated => _token != null && _user != null;
+  bool get loading => _loading;
+  String? get errorMessage => _errorMessage;
   bool get biometricEnabled => _biometricEnabled;
 
-  String get displayName    => _user?.fullName ?? 'Usuario';
-  String get displayEmail   => _user?.email ?? '';
-  String get displayPhone   => _user?.phone ?? '';
+  String get displayName => _user?.fullName ?? 'Usuario';
+  String get displayEmail => _user?.email ?? '';
+  String get displayPhone => _user?.phone ?? '';
   String get displayInitial => _user?.fullName.isNotEmpty == true
       ? _user!.fullName[0].toUpperCase()
       : 'U';
 
-  bool get needsProfileCompletion =>
-      _user?.googleProfileIncomplete == true && _token != null;
+  // ── NUEVOS GETTERS DE SUSCRIPCIÓN ────────────────────────
+  String get subscriptionPlan => _user?.subscriptionPlan ?? 'free';
+
+  bool get isPremium {
+    if (_user == null) return false;
+
+    final now = DateTime.now();
+
+    // Premium según Stripe + fecha de expiración válida
+    if (_user!.subscriptionPlan == 'premium') {
+      if (_user!.subscriptionExpiresAt != null) {
+        return _user!.subscriptionExpiresAt!.isAfter(now);
+      }
+      return true; // premium sin fecha de expiración (caso raro)
+    }
+
+    return false;
+  }
+
+  bool get isTrialActive {
+    if (_user == null) return false;
+    final now = DateTime.now();
+    return _user!.trialEndsAt?.isAfter(now) ?? false;
+  }
 
   // ── Persistencia biométrica ───────────────────────────────
 
   Future<void> _loadBiometricPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    _biometricEnabled  = prefs.getBool(_keyBiometricEnabled)   ?? false;
-    _biometricEmail    = prefs.getString(_keyBiometricEmail);
+    _biometricEnabled = prefs.getBool(_keyBiometricEnabled) ?? false;
+    _biometricEmail = prefs.getString(_keyBiometricEmail);
     _biometricPassword = prefs.getString(_keyBiometricPassword);
     notifyListeners();
   }
@@ -69,28 +98,27 @@ class AuthProvider extends ChangeNotifier {
 
   // ── LOGIN ─────────────────────────────────────────────────
   Future<bool> login(String email, String password) async {
-  _setLoading(true);
-  _errorMessage = null;
-  try {
-    final result = await AuthService.login(email: email, password: password);
-    _user  = result.user;
-    _token = result.token;
- 
-    // ── NUEVO: registrar FCM token en el backend ──────────────────────────
-    // setAuthToken guarda el auth token y envía el FCM token al backend.
-    await PushNotificationHandler.instance.setAuthToken(result.token);
-    // ─────────────────────────────────────────────────────────────────────
- 
-    notifyListeners();
-    return true;
-  } catch (e) {
-    _errorMessage = _parseError(e);
-    notifyListeners();
-    return false;
-  } finally {
-    _setLoading(false);
+    _setLoading(true);
+    _errorMessage = null;
+    try {
+      final result = await AuthService.login(email: email, password: password);
+      _user = result.user;
+      _token = result.token;
+
+      await PushNotificationHandler.instance.setAuthToken(result.token);
+
+      await _loadSubscription();
+
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = _parseError(e);
+      notifyListeners();
+      return false;
+    } finally {
+      _setLoading(false);
+    }
   }
-}
 
   // ── REGISTER ─────────────────────────────────────────────
   Future<bool> register({
@@ -103,8 +131,10 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
     try {
       await AuthService.register(
-        fullName: fullName, email: email,
-        phone: phone, password: password,
+        fullName: fullName,
+        email: email,
+        phone: phone,
+        password: password,
       );
       notifyListeners();
       return true;
@@ -117,7 +147,49 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // ── FORGOT PASSWORD ──────────────────────────────────────
+  // ── NUEVO: Activar prueba gratis de 7 días ─────────────────────────────
+  Future<bool> startFreeTrial() async {
+    if (_token == null) {
+      _errorMessage = 'No hay sesión activa';
+      notifyListeners();
+      return false;
+    }
+
+    _setLoading(true);
+    _errorMessage = null;
+    try {
+      await AuthService.startFreeTrial(token: _token!);
+      // Refrescar información del usuario después de activar el trial
+      await refreshUserInfo();
+      return true;
+    } catch (e) {
+      _errorMessage = _parseError(e);
+      notifyListeners();
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // ── REFRESH USER INFO ────────────────────────────────────
+  Future<void> refreshUserInfo() async {
+    if (_token == null) return;
+    try {
+      final result = await AuthService.refreshUserInfo(token: _token!);
+      _user = result.user;
+      await _loadSubscription();
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = _parseError(e);
+    }
+  }
+
+  Future<void> _loadSubscription() async {
+    if (_token != null && _subscriptionProvider != null) {
+      await _subscriptionProvider!.loadActiveSubscription(token: _token!);
+    }
+  }
+
   Future<bool> requestPasswordReset(String email) async {
     _setLoading(true);
     _errorMessage = null;
@@ -134,7 +206,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // ── CHANGE PASSWORD ──────────────────────────────────────
   Future<bool> changePassword({
     required String currentPassword,
     required String newPassword,
@@ -163,7 +234,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // ── RESEND EMAIL VERIFICATION ────────────────────────────
   Future<bool> resendVerificationEmail() async {
     if (_token == null) {
       _errorMessage = 'No hay sesión activa';
@@ -185,9 +255,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // ── PHONE VERIFICATION ───────────────────────────────────
-
-  /// Solicita el envío del OTP por WhatsApp.
   Future<bool> sendPhoneVerificationCode() async {
     if (_token == null) {
       _errorMessage = 'No hay sesión activa';
@@ -209,7 +276,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Verifica el OTP ingresado y actualiza el estado local del usuario.
   Future<bool> verifyPhoneCode(String code) async {
     if (_token == null) {
       _errorMessage = 'No hay sesión activa';
@@ -221,18 +287,17 @@ class AuthProvider extends ChangeNotifier {
     try {
       await AuthService.verifyPhoneCode(token: _token!, code: code);
 
-      // Actualizar el estado local del usuario sin necesidad de re-login
       if (_user != null) {
         _user = AuthUser(
           id: _user!.id,
           fullName: _user!.fullName,
           email: _user!.email,
           phone: _user!.phone,
-          userAccount: _user!.userAccount,
+          subscriptionPlan: _user!.subscriptionPlan,
+          trialEndsAt: _user!.trialEndsAt,
+          subscriptionExpiresAt: _user!.subscriptionExpiresAt,
           emailVerified: _user!.emailVerified,
-          phoneVerified: true, // ← marcar como verificado localmente
-          googleProfileIncomplete: _user!.googleProfileIncomplete,
-          profilePicture: _user!.profilePicture,
+          phoneVerified: true,
           createdAt: _user!.createdAt,
         );
       }
@@ -250,9 +315,9 @@ class AuthProvider extends ChangeNotifier {
 
   // ── BIOMETRIC LOGIN ───────────────────────────────────────
   Future<void> saveBiometricCredentials(String email, String password) async {
-    _biometricEmail    = email;
+    _biometricEmail = email;
     _biometricPassword = password;
-    _biometricEnabled  = true;
+    _biometricEnabled = true;
     await _saveBiometricPrefs();
     notifyListeners();
   }
@@ -267,8 +332,8 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> disableBiometrics() async {
-    _biometricEnabled  = false;
-    _biometricEmail    = null;
+    _biometricEnabled = false;
+    _biometricEmail = null;
     _biometricPassword = null;
     await _clearBiometricPrefs();
     notifyListeners();
@@ -276,15 +341,13 @@ class AuthProvider extends ChangeNotifier {
 
   // ── LOGOUT ───────────────────────────────────────────────
   void logout() {
-  // ── NUEVO: limpiar el auth token del handler ──────────────────────────
-  PushNotificationHandler.instance.clearAuthToken();
-  // ─────────────────────────────────────────────────────────────────────
- 
-  _user  = null;
-  _token = null;
-  _errorMessage = null;
-  notifyListeners();
-}
+    PushNotificationHandler.instance.clearAuthToken();
+    _subscriptionProvider?.clear();
+    _user = null;
+    _token = null;
+    _errorMessage = null;
+    notifyListeners();
+  }
 
   // ── Helpers ──────────────────────────────────────────────
   void clearError() {

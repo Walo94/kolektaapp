@@ -33,19 +33,19 @@ class KolektaBottomNavBar extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _NavItem(
-                icon: Icons.home_rounded,
+                iconPath: 'assets/images/home.png',
                 label: 'Inicio',
                 isSelected: currentIndex == 0,
                 onTap: () => onTap(0),
               ),
               _NavItem(
-                icon: Icons.notifications_none_rounded,
+                iconPath: 'assets/images/activity.png',
                 label: 'Actividad',
                 isSelected: currentIndex == 1,
                 onTap: () => onTap(1),
               ),
               _NavItem(
-                icon: Icons.person_outline_rounded,
+                iconPath: 'assets/images/profile.png',
                 label: 'Perfil',
                 isSelected: currentIndex == 2,
                 onTap: () => onTap(2),
@@ -60,13 +60,13 @@ class KolektaBottomNavBar extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   const _NavItem({
-    required this.icon,
+    required this.iconPath,
     required this.label,
     required this.isSelected,
     required this.onTap,
   });
 
-  final IconData icon;
+  final String iconPath;
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
@@ -81,28 +81,31 @@ class _NavItem extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: isSelected
             ? BoxDecoration(
-                color: c.primarySurface,
+                color: c.primarySurface.withOpacity(0.7), // ← Fondo más suave
                 borderRadius: BorderRadius.circular(20),
               )
             : null,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 24,
-              color: isSelected ? primary : c.textHint,
+            // Icono como imagen
+            Image.asset(
+              iconPath,
+              width: 26,
+              height: 26,
+              fit: BoxFit.contain,
+              // Cuando está seleccionado usamos el color primary para mejor contraste
+              color: isSelected ? primary : null,
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight:
-                    isSelected ? FontWeight.w600 : FontWeight.w400,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 color: isSelected ? primary : c.textHint,
               ),
             ),

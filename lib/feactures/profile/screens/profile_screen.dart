@@ -10,6 +10,7 @@ import '../../modules/providers/batch_provider.dart';
 import '../../modules/providers/catalog_provider.dart';
 import '../../modules/providers/giveaway_provider.dart';
 import '../providers/notification_provider.dart';
+import '../providers/subscription_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, this.onLogout});
@@ -84,7 +85,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       iconColor: AppColors.green,
                       title: 'Suscripciones',
                       subtitle: 'Gestiona tu plan y pagos',
-                      onTap: () {},
+                      onTap: () => context.push(AppRoutes.subscription),
                     ),
                     _SettingsItem(
                       icon: Icons.notifications_none_rounded,
@@ -139,7 +140,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       iconColor: AppColors.purple,
                       title: 'Privacidad',
                       subtitle: 'Datos y permisos',
-                      onTap: () {},
+                      onTap: () => context.push(AppRoutes.privacy),
                     ),
                   ]),
                   const SizedBox(height: 20),
@@ -154,7 +155,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       iconColor: AppColors.orange,
                       title: 'Centro de ayuda',
                       subtitle: null,
-                      onTap: () {},
+                      onTap: () => context.push(AppRoutes.help),
                     ),
                     _SettingsItem(
                       icon: Icons.chat_bubble_outline_rounded,
@@ -239,11 +240,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 // ─── Subwidgets ───────────────────────────────────────────────────────────────
-
 class _ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final sub = context.watch<SubscriptionProvider>(); // ← Nueva línea
+
+    final bool isPremium = sub.hasActiveSubscription;
 
     return Container(
       width: double.infinity,
@@ -262,27 +265,38 @@ class _ProfileHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(22),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4)),
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
             child: Center(
-              child: Text(auth.displayInitial,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 32)),
+              child: Text(
+                auth.displayInitial,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 32,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 12),
-          Text(auth.displayName,
-              style: AppTextStyles.headingLarge.copyWith(color: Colors.white)),
+          Text(
+            auth.displayName,
+            style: AppTextStyles.headingLarge.copyWith(color: Colors.white),
+          ),
           const SizedBox(height: 2),
-          Text(auth.displayEmail,
-              style: AppTextStyles.bodySmall
-                  .copyWith(color: Colors.white.withOpacity(0.75))),
+          Text(
+            auth.displayEmail,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: Colors.white.withOpacity(0.75),
+            ),
+          ),
           const SizedBox(height: 12),
+
+          // Badge actualizado con información de Stripe
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
             decoration: BoxDecoration(
@@ -294,21 +308,18 @@ class _ProfileHeader extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  auth.user?.userAccount == 'premium'
-                      ? Icons.star_rounded
-                      : Icons.star_border_rounded,
+                  isPremium ? Icons.star_rounded : Icons.star_border_rounded,
                   color: AppColors.orange,
                   size: 16,
                 ),
                 const SizedBox(width: 5),
                 Text(
-                  auth.user?.userAccount == 'premium'
-                      ? 'Miembro Premium'
-                      : 'Plan Gratuito',
+                  isPremium ? 'Plan Premium' : 'Plan Gratuito',
                   style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600),
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -365,25 +376,25 @@ class _StatsRow extends StatelessWidget {
                 _StatItem(
                   count: activeBatchs.toString(),
                   label: 'Tandas',
+                  imageAsset: 'assets/images/batch.png',
                   iconBg: c.purpleLight,
                   iconColor: AppColors.purple,
-                  icon: Icons.sync_alt_rounded,
                 ),
                 _Separator(),
                 _StatItem(
                   count: pendingOrders.toString(),
                   label: 'Pendientes',
+                  imageAsset: 'assets/images/catalog.png',
                   iconBg: c.greenLight,
                   iconColor: AppColors.green,
-                  icon: Icons.shopping_bag_outlined,
                 ),
                 _Separator(),
                 _StatItem(
                   count: openGiveaways.toString(),
                   label: 'Rifas',
+                  imageAsset: 'assets/images/giveaway2.png',
                   iconBg: c.pinkLight,
                   iconColor: AppColors.pink,
-                  icon: Icons.help_outline_rounded,
                 ),
               ],
             ),
@@ -398,36 +409,51 @@ class _Separator extends StatelessWidget {
 }
 
 class _StatItem extends StatelessWidget {
-  const _StatItem({
-    required this.count,
-    required this.label,
-    required this.iconBg,
-    required this.iconColor,
-    required this.icon,
-  });
+  const _StatItem(
+      {required this.count,
+      required this.label,
+      required this.imageAsset,
+      required this.iconBg,
+      required this.iconColor});
 
-  final String count, label;
-  final Color iconBg, iconColor;
-  final IconData icon;
+  final String count;
+  final String label;
+  final String imageAsset;
+  final Color iconBg;
+  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
     final c = context.kolekta;
+
     return Expanded(
       child: Column(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
-                color: iconBg, borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, color: iconColor, size: 20),
+              color: iconBg,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Center(
+              child: Image.asset(
+                imageAsset,
+                width: 32,
+                height: 32,
+                fit: BoxFit.contain,
+              ),
+            ),
           ),
-          const SizedBox(height: 6),
-          Text(count,
-              style: AppTextStyles.headingSmall.copyWith(color: c.textPrimary)),
-          Text(label,
-              style: AppTextStyles.labelSmall.copyWith(color: c.textHint)),
+          const SizedBox(height: 8),
+          Text(
+            count,
+            style: AppTextStyles.headingSmall.copyWith(color: c.textPrimary),
+          ),
+          Text(
+            label,
+            style: AppTextStyles.labelSmall.copyWith(color: c.textHint),
+          ),
         ],
       ),
     );

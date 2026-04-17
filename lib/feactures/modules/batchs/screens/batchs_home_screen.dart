@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:kolekta/feactures/modules/batchs/screens/create_batch_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
-
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/kolekta_colors.dart';
@@ -11,6 +11,7 @@ import '../../../../core/constants/app_routes.dart';
 import '../../../admin/providers/auth_provider.dart';
 import '../../providers/batch_provider.dart';
 import '../../services/batch_service.dart';
+import '../../../profile/providers/subscription_provider.dart';
 import '../../../../shared/widgets/kolekta_pagination.dart';
 
 class BatchsHomeScreen extends StatefulWidget {
@@ -70,6 +71,38 @@ class _BatchsHomeScreenState extends State<BatchsHomeScreen>
     }
   }
 
+  void _goToCreate() {
+    final sub = context.read<SubscriptionProvider>();
+
+    // Nueva validación basada en Stripe
+    final bool hasActiveSubscription = sub.hasActiveSubscription;
+    final int currentBatchsCount = _getOpenBatchsCount();
+
+    if (!hasActiveSubscription && currentBatchsCount >= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Has alcanzado el límite de tandas activas de tu plan. '
+            'Actualiza a Premium para crear más.',
+          ),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const CreateBatchScreen()),
+    );
+
+  }
+
+  int _getOpenBatchsCount() {
+    final prov = context.read<BatchProvider>();
+    return prov.batchs.where((g) => g.status == BatchStatus.active).length;
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.kolekta;
@@ -101,7 +134,7 @@ class _BatchsHomeScreenState extends State<BatchsHomeScreen>
                 ),
                 FloatingActionButton(
                   heroTag: 'batch_fab',
-                  onPressed: () => context.push(AppRoutes.createBatch),
+                  onPressed: _goToCreate,
                   backgroundColor: AppColors.primary,
                   mini: true,
                   elevation: 4,
@@ -219,36 +252,33 @@ class _BatchList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.kolekta;
-    if (batchs.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: onRefresh,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            const SizedBox(height: 60),
-            Center(
-              child: Column(
-                children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: c.purpleLight,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(emptyIcon, color: AppColors.purple, size: 36),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(emptyMessage,
-                      style: AppTextStyles.headingSmall
-                          .copyWith(color: c.textSecondary)),
-                ],
+   if (batchs.isEmpty) {
+  return RefreshIndicator(
+    onRefresh: onRefresh,
+    child: ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        const SizedBox(height: 60),
+        Center(
+          child: Column(
+            children: [
+              // ← Cambiado: Usamos Image.asset en lugar del icono circular
+              Image.asset(
+                'assets/images/batch2.png',
+                width: 100,           // Ajusta el tamaño según se vea mejor
+                height: 100,
               ),
-            ),
-          ],
+              const SizedBox(height: 24),
+              Text(emptyMessage,
+                  style: AppTextStyles.headingSmall
+                      .copyWith(color: c.textSecondary)),
+            ],
+          ),
         ),
-      );
-    }
+      ],
+    ),
+  );
+}
 
     return RefreshIndicator(
       onRefresh: onRefresh,

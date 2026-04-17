@@ -10,6 +10,9 @@ class AppRoutes {
   static const String forgotPassword = '/forgot-password';
   static const String security = '/home/profile/security';
   static const String personalInfo = '/home/profile/personal-info';
+  static const String subscription = '/home/profile/subscription';
+  static const String help = '/home/profile/help';
+  static const String privacy = '/home/profile/privacy';
 
   // Módulos
 

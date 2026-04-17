@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'core/utils/theme_provider.dart';
 import 'feactures/admin/providers/auth_provider.dart';
+import 'feactures/profile/providers/subscription_provider.dart';
 import 'feactures/modules/providers/batch_provider.dart';
 import 'feactures/modules/providers/catalog_provider.dart';
 import 'feactures/modules/providers/giveaway_provider.dart';
@@ -56,7 +57,14 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => SubscriptionProvider()),
+        ChangeNotifierProxyProvider<SubscriptionProvider, AuthProvider>(
+          create: (_) => AuthProvider(),
+          update: (_, subscriptionProvider, authProvider) {
+            authProvider!.attachSubscriptionProvider(subscriptionProvider);
+            return authProvider;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => BatchProvider()),
         ChangeNotifierProvider(create: (_) => ActivityProvider()),
         ChangeNotifierProvider(create: (_) => CatalogProvider()),

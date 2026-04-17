@@ -1,6 +1,3 @@
-// lib/app.dart — versión actualizada (solo muestra los cambios relevantes)
-// Busca los comentarios "── NUEVO" para los únicos cambios.
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -21,13 +18,16 @@ import 'feactures/modules/catalogs/screens/sale_detail_screen.dart';
 import 'feactures/modules/batchs/screens/batchs_home_screen.dart';
 import 'feactures/home/screens/home_screen.dart';
 import 'feactures/activity/screens/activity_screen.dart';
-import 'feactures/profile/screens/profile_screen.dart';
-import 'feactures/profile/screens/personal_info_screen.dart';
 import 'feactures/profile/screens/security_screen.dart';
 import 'feactures/modules/giveaways/screens/giveaways_home_screen.dart';
 import 'feactures/modules/giveaways/screens/create_giveaway_screen.dart';
 import 'feactures/modules/giveaways/screens/giveaway_detail_screen.dart';
-// ── NUEVO ──────────────────────────────────────────────────────────────────────
+
+import 'feactures/profile/screens/profile_screen.dart';
+import 'feactures/profile/screens/personal_info_screen.dart';
+import 'feactures/profile/screens/subscription_screen.dart';
+import 'feactures/profile/screens/help_screen.dart';
+import 'feactures/profile/screens/privacy_screen.dart';
 import 'feactures/profile/screens/notifications_screen.dart';
 import 'feactures/profile/screens/notification_preferences_screen.dart';
 import 'feactures/profile/services/push_notification_handler.dart';
@@ -90,9 +90,7 @@ class _KolektaAppState extends State<KolektaApp> {
 
         if (!isAuth && !isPublicRoute) return AppRoutes.login;
 
-        if (isAuth &&
-            !auth.needsProfileCompletion &&
-            (loc == AppRoutes.login || loc == AppRoutes.register)) {
+        if (isAuth && (loc == AppRoutes.login || loc == AppRoutes.register)) {
           return AppRoutes.home;
         }
 
@@ -148,8 +146,20 @@ class _KolektaAppState extends State<KolektaApp> {
               path: AppRoutes.personalInfo,
               builder: (context, state) => const PersonalInfoScreen(),
             ),
+            GoRoute(
+              path: AppRoutes.subscription,
+              builder: (context, state) => const SubscriptionScreen(),
+            ),
+            GoRoute(
+              path: AppRoutes.help,
+              builder: (context, state) => const HelpScreen(),
+            ),
+            GoRoute(
+              path: AppRoutes.privacy,
+              builder: (context, state) => const PrivacyScreen(),
+            ),
 
-            // ── NUEVO: Notificaciones ─────────────────────────────────────
+            // ── Notificaciones ─────────────────────────────────────
             GoRoute(
               path: AppRoutes.notifications,
               builder: (context, state) => const NotificationsScreen(),

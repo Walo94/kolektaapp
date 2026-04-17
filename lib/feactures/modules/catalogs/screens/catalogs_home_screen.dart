@@ -7,6 +7,7 @@ import '../../../../shared/widgets/kolekta_pagination.dart';
 import '../../../admin/providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../services/catalog_service.dart';
+import '../../../profile/providers/subscription_provider.dart';
 import 'create_sale_screen.dart';
 import 'sale_detail_screen.dart';
 
@@ -23,9 +24,9 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
   bool _loadingMore = false;
 
   static const _tabs = [
-    (label: 'Todos',     status: null),
+    (label: 'Todos', status: null),
     (label: 'Pendiente', status: SaleStatus.pending),
-    (label: 'Pagado',    status: SaleStatus.paid),
+    (label: 'Pagado', status: SaleStatus.paid),
     (label: 'Cancelado', status: SaleStatus.cancelled),
   ];
 
@@ -65,9 +66,33 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
   }
 
   void _goToCreate() {
+    final sub = context.read<SubscriptionProvider>();
+
+    final bool hasActiveSubscription = sub.hasActiveSubscription;
+    final int currentSalesCount = _getOpenSalesCount();
+
+    if (!hasActiveSubscription && currentSalesCount >= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Has alcanzado el límite de ventas activas de tu plan. '
+            'Actualiza a Premium para crear más.',
+          ),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const CreateSaleScreen()),
     );
+  }
+
+  int _getOpenSalesCount() {
+    final prov = context.read<CatalogProvider>();
+    return prov.sales.where((g) => g.status == SaleStatus.pending).length;
   }
 
   void _goToDetail(Sale sale) {
@@ -114,8 +139,7 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
                       backgroundColor: AppColors.green,
                       mini: true,
                       elevation: 4,
-                      child:
-                          const Icon(Icons.add_rounded, color: Colors.white),
+                      child: const Icon(Icons.add_rounded, color: Colors.white),
                     ),
                   ],
                 ),
@@ -221,9 +245,7 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
                     unselectedLabelStyle: const TextStyle(
                         fontSize: 11, fontWeight: FontWeight.w500),
                     dividerColor: Colors.transparent,
-                    tabs: _tabs
-                        .map((t) => Tab(text: t.label))
-                        .toList(),
+                    tabs: _tabs.map((t) => Tab(text: t.label)).toList(),
                   ),
                 ),
               ),
@@ -260,8 +282,7 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
             Icon(Icons.wifi_off_rounded, size: 48, color: c.textHint),
             const SizedBox(height: 12),
             Text(prov.errorMessage!,
-                style: AppTextStyles.bodySmall
-                    .copyWith(color: c.textSecondary),
+                style: AppTextStyles.bodySmall.copyWith(color: c.textSecondary),
                 textAlign: TextAlign.center),
             const SizedBox(height: 16),
             TextButton.icon(
@@ -288,16 +309,30 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.shopping_bag_outlined,
-                        size: 56, color: c.textHint),
-                    const SizedBox(height: 12),
-                    Text('Sin ventas registradas',
-                        style: AppTextStyles.labelLarge
-                            .copyWith(color: c.textSecondary)),
-                    const SizedBox(height: 4),
-                    Text('Toca + para registrar una venta',
-                        style: AppTextStyles.bodySmall
-                            .copyWith(color: c.textHint)),
+                    // ← Imagen en lugar del icono
+                    Image.asset(
+                      'assets/images/catalog2.png',
+                      width: 120,
+                      height: 120,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(height: 28),
+
+                    Text(
+                      'Sin ventas registradas',
+                      style: AppTextStyles.labelLarge
+                          .copyWith(color: c.textSecondary),
+                      textAlign: TextAlign.center,
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    Text(
+                      'Toca + para registrar una venta',
+                      style:
+                          AppTextStyles.bodySmall.copyWith(color: c.textHint),
+                      textAlign: TextAlign.center,
+                    ),
                   ],
                 ),
               ),
@@ -342,8 +377,7 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
 
   // ── Menú contextual ───────────────────────────────────────────────────────
 
-  void _showContextMenu(
-      BuildContext context, Sale sale, String token) {
+  void _showContextMenu(BuildContext context, Sale sale, String token) {
     final c = context.kolekta;
 
     showModalBottomSheet(
@@ -363,8 +397,7 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
-                    color: c.border,
-                    borderRadius: BorderRadius.circular(2)),
+                    color: c.border, borderRadius: BorderRadius.circular(2)),
               ),
               Padding(
                 padding:
@@ -446,19 +479,16 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: c.surface,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Cancelar venta',
             style: AppTextStyles.labelLarge.copyWith(color: c.textPrimary)),
         content: Text(
             '¿Cancelar la venta #${sale.orderNum} de ${sale.clientName}? Sus pagos también serán cancelados.',
-            style:
-                AppTextStyles.bodySmall.copyWith(color: c.textSecondary)),
+            style: AppTextStyles.bodySmall.copyWith(color: c.textSecondary)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text('No',
-                  style: TextStyle(color: c.textSecondary))),
+              child: Text('No', style: TextStyle(color: c.textSecondary))),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Cancelar venta',
@@ -480,19 +510,16 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: c.surface,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Eliminar venta',
             style: AppTextStyles.labelLarge.copyWith(color: c.textPrimary)),
         content: Text(
             '¿Eliminar permanentemente la venta #${sale.orderNum}? Esta acción no se puede deshacer.',
-            style:
-                AppTextStyles.bodySmall.copyWith(color: c.textSecondary)),
+            style: AppTextStyles.bodySmall.copyWith(color: c.textSecondary)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text('No',
-                  style: TextStyle(color: c.textSecondary))),
+              child: Text('No', style: TextStyle(color: c.textSecondary))),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Eliminar',
@@ -552,8 +579,7 @@ class _SaleCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: c.border),
           boxShadow: [
-            BoxShadow(
-                color: Colors.black.withOpacity(0.04), blurRadius: 10),
+            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10),
           ],
         ),
         child: Column(
@@ -564,8 +590,8 @@ class _SaleCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: c.greenLight,
                     borderRadius: BorderRadius.circular(8),
@@ -588,13 +614,11 @@ class _SaleCard extends StatelessWidget {
 
             // ── Título y cliente ────────────────────────────────────────
             Text(sale.title,
-                style: AppTextStyles.labelLarge
-                    .copyWith(color: c.textPrimary)),
+                style: AppTextStyles.labelLarge.copyWith(color: c.textPrimary)),
             const SizedBox(height: 2),
             Row(
               children: [
-                Icon(Icons.person_outline_rounded,
-                    size: 13, color: c.textHint),
+                Icon(Icons.person_outline_rounded, size: 13, color: c.textHint),
                 const SizedBox(width: 4),
                 Text(sale.clientName,
                     style: AppTextStyles.bodySmall
@@ -623,9 +647,7 @@ class _SaleCard extends StatelessWidget {
                 _AmountItem(
                   label: 'Saldo',
                   value: _fmt(sale.balance),
-                  color: sale.balance > 0
-                      ? AppColors.orange
-                      : AppColors.green,
+                  color: sale.balance > 0 ? AppColors.orange : AppColors.green,
                 ),
               ],
             ),
@@ -696,9 +718,7 @@ class _SaleStatusBadge extends StatelessWidget {
           BoxDecoration(color: bg, borderRadius: BorderRadius.circular(16)),
       child: Text(status.label,
           style: TextStyle(
-              color: textColor,
-              fontSize: 10,
-              fontWeight: FontWeight.w700)),
+              color: textColor, fontSize: 10, fontWeight: FontWeight.w700)),
     );
   }
 }
@@ -736,10 +756,8 @@ class _SheetOption extends StatelessWidget {
       title: Text(label,
           style: AppTextStyles.labelLarge
               .copyWith(color: labelColor ?? c.textPrimary)),
-      trailing:
-          Icon(Icons.chevron_right_rounded, color: c.textHint, size: 18),
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      trailing: Icon(Icons.chevron_right_rounded, color: c.textHint, size: 18),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onTap: onTap,
     );
   }

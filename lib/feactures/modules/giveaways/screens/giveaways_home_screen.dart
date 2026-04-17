@@ -11,6 +11,7 @@ import '../../providers/giveaway_provider.dart';
 import '../../services/giveaway_service.dart';
 import 'create_giveaway_screen.dart';
 import 'giveaway_detail_screen.dart';
+import '../../../profile/providers/subscription_provider.dart';
 
 class GiveawaysHomeScreen extends StatefulWidget {
   const GiveawaysHomeScreen({super.key});
@@ -63,9 +64,34 @@ class _GiveawaysHomeScreenState extends State<GiveawaysHomeScreen>
   }
 
   void _goToCreate() {
+    final sub = context.read<SubscriptionProvider>();
+
+    // validación basada en Stripe
+    final bool hasActiveSubscription = sub.hasActiveSubscription;
+    final int currentGiveawaysCount =
+        _getOpenGiveawaysCount(); // rifas abiertas actuales
+
+    if (!hasActiveSubscription && currentGiveawaysCount >= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Has alcanzado el límite de rifas activas en tu plan. Suscríbete a Premium para crear más.'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Si tiene Premium o aún no llegó al límite (1 rifa)
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const CreateGiveawayScreen()),
     );
+  }
+
+  int _getOpenGiveawaysCount() {
+    final prov = context.read<GiveawayProvider>();
+    return prov.giveaways.where((g) => g.status == GiveawayStatus.open).length;
   }
 
   void _goToDetail(Giveaway g) {
@@ -690,35 +716,40 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.kolekta;
+
     return RefreshIndicator(
       color: AppColors.pink,
       onRefresh: onRefresh,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         children: [
           SizedBox(
-            height: 280,
+            height: MediaQuery.of(context).size.height * 0.35, // Centrado vertical
             child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                        color: context.kolekta.pinkLight,
-                        shape: BoxShape.circle),
-                    child: const Icon(Icons.confirmation_number_outlined,
-                        color: AppColors.pink, size: 36),
+                  Image.asset(
+                    'assets/images/giveaway2.png',
+                    width: 100,
+                    height: 100,
+                    fit: BoxFit.contain,
                   ),
-                  const SizedBox(height: 16),
-                  Text('Sin rifas',
-                      style: AppTextStyles.headingSmall
-                          .copyWith(color: c.textSecondary)),
-                  const SizedBox(height: 4),
-                  Text('Toca + para crear tu primera rifa',
-                      style:
-                          AppTextStyles.bodySmall.copyWith(color: c.textHint)),
+                  const SizedBox(height: 32),
+                  Text(
+                    'Sin rifas',
+                    style: AppTextStyles.headingSmall
+                        .copyWith(color: c.textSecondary),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Toca + para crear tu primera rifa',
+                    style: AppTextStyles.bodySmall
+                        .copyWith(color: c.textHint),
+                    textAlign: TextAlign.center,
+                  ),
                 ],
               ),
             ),
