@@ -15,6 +15,8 @@ import 'shared/widgets/main_shell.dart';
 import 'feactures/modules/catalogs/screens/catalogs_home_screen.dart';
 import 'feactures/modules/catalogs/screens/create_sale_screen.dart';
 import 'feactures/modules/catalogs/screens/sale_detail_screen.dart';
+import 'feactures/modules/catalogs/screens/products_home_screen.dart';
+import 'feactures/modules/catalogs/screens/product_form_screen.dart';
 import 'feactures/modules/batchs/screens/batchs_home_screen.dart';
 import 'feactures/home/screens/home_screen.dart';
 import 'feactures/activity/screens/activity_screen.dart';
@@ -215,6 +217,19 @@ class _KolektaAppState extends State<KolektaApp> {
                 final id = state.pathParameters['id']!;
                 return SaleDetailScreen(saleId: id);
               },
+            ),
+            GoRoute(
+              path: AppRoutes.products,
+              builder: (context, state) => const ProductsHomeScreen(),
+            ),
+
+            GoRoute(
+              path: AppRoutes.productForm,
+              pageBuilder: (context, state) => _slideUpPage(
+                context: context,
+                state: state,
+                child: const ProductFormScreen(),
+              ),
             ),
 
             // ── Rifas ──────────────────────────────────────────

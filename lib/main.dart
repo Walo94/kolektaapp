@@ -11,8 +11,10 @@ import 'feactures/modules/providers/batch_provider.dart';
 import 'feactures/modules/providers/catalog_provider.dart';
 import 'feactures/modules/providers/giveaway_provider.dart';
 import 'feactures/activity/providers/activity_provider.dart';
+import 'feactures/modules/providers/product_provider.dart';
 import 'feactures/profile/providers/notification_provider.dart';
 import 'feactures/profile/services/push_notification_handler.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'app.dart';
 
 /// Handler de mensajes en background/terminated.
@@ -21,23 +23,20 @@ import 'app.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  debugPrint('[Push] Mensaje en background: ${message.messageId}');
   // El SO ya muestra la notificación visual — no hace falta llamar _showLocal.
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ── 1. Firebase — DEBE ir antes de cualquier uso de Firebase ──────────────
+  await dotenv.load(fileName: ".env");
+
   await Firebase.initializeApp();
 
-  // ── 2. Registrar handler de mensajes en background ─────────────────────────
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // ── 3. Localización ────────────────────────────────────────────────────────
   await initializeDateFormatting('es', null);
 
-  // ── 4. UI del sistema ──────────────────────────────────────────────────────
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -49,7 +48,6 @@ void main() async {
     ),
   );
 
-  // ── 5. Provider + handler de push ─────────────────────────────────────────
   final notificationProvider = NotificationProvider();
   await PushNotificationHandler.instance.init(notificationProvider);
 
@@ -68,6 +66,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => BatchProvider()),
         ChangeNotifierProvider(create: (_) => ActivityProvider()),
         ChangeNotifierProvider(create: (_) => CatalogProvider()),
+        ChangeNotifierProvider(create: (_) => ProductProvider()),
         ChangeNotifierProvider(create: (_) => GiveawayProvider()),
         ChangeNotifierProvider.value(value: notificationProvider),
       ],

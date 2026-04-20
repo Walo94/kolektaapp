@@ -7,8 +7,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-// NOTE: add `lottie: ^3.1.2` to pubspec.yaml dependencies
 import 'package:lottie/lottie.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -38,8 +38,8 @@ class _GiveawayDetailScreenState extends State<GiveawayDetailScreen>
   List<GiveawayTicket>? _pendingWinners;
   late AnimationController _lottieCtrl;
 
-  static const String _kBaseShareUrl =
-      'http://192.168.70.108:8080/shared/giveaway';
+  static final String _kBaseShareUrl =
+      '${dotenv.env['WEB_URL']}/shared/giveaway';
 
   @override
   void initState() {
@@ -433,7 +433,6 @@ class _GiveawayDetailScreenState extends State<GiveawayDetailScreen>
                 });
                 _lottieCtrl.reset();
 
-                
                 await Future.delayed(const Duration(seconds: 2));
 
                 // Llamar al sorteo mientras la animación corre
@@ -1094,7 +1093,7 @@ class _GiveawayHeader extends StatelessWidget {
                           color: Colors.white70, size: 12),
                       const SizedBox(width: 4),
                       Text(
-                        'Auto: ${DateFormat('dd/MM/yyyy HH:mm').format(giveaway.autoDrawAt!)}',
+                        'Auto: ${DateFormat('dd/MM/yyyy HH:mm').format(giveaway.autoDrawAt!.toLocal())}',
                         style: AppTextStyles.labelSmall
                             .copyWith(color: Colors.white70),
                       ),
@@ -1307,8 +1306,8 @@ class _InfoCardState extends State<_InfoCard> {
             _InfoRow(
               icon: Icons.auto_mode_rounded,
               label: 'Sorteo automático',
-              value:
-                  DateFormat("dd/MM/yyyy 'a las' HH:mm").format(g.autoDrawAt!),
+              value: DateFormat("dd/MM/yyyy 'a las' HH:mm")
+                  .format(g.autoDrawAt!.toLocal()),
             ),
           ],
 

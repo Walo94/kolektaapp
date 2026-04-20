@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
@@ -32,6 +33,41 @@ extension SaleStatusX on SaleStatus {
 enum PaymentStatus { paid, cancelled }
 
 // ─── Modelos ──────────────────────────────────────────────────────────────────
+
+/// Snapshot de un ítem dentro de una venta (inmutable tras crear)
+class SaleItemSnapshot {
+  final String id;
+  final String saleId;
+  final String? productId;
+  final String productName;
+  final double unitPrice;
+  final int quantity;
+  final double subtotal;
+  final DateTime createdAt;
+
+  const SaleItemSnapshot({
+    required this.id,
+    required this.saleId,
+    this.productId,
+    required this.productName,
+    required this.unitPrice,
+    required this.quantity,
+    required this.subtotal,
+    required this.createdAt,
+  });
+
+  factory SaleItemSnapshot.fromJson(Map<String, dynamic> json) =>
+      SaleItemSnapshot(
+        id: json['id'] as String,
+        saleId: json['saleId'] as String,
+        productId: json['productId'] as String?,
+        productName: json['productName'] as String,
+        unitPrice: double.parse(json['unitPrice'].toString()),
+        quantity: json['quantity'] as int,
+        subtotal: double.parse(json['subtotal'].toString()),
+        createdAt: DateTime.parse(json['createdAt'] as String),
+      );
+}
 
 class SalePayment {
   final String id;
@@ -69,11 +105,11 @@ class Sale {
   final String clientName;
   final String? clientPhone;
   final String title;
-  final String description;
   final double totalAmount;
   final double balance;
   final String date;
   final SaleStatus status;
+  final List<SaleItemSnapshot> items;
   final List<SalePayment> payments;
   final DateTime createdAt;
 
@@ -84,11 +120,11 @@ class Sale {
     required this.clientName,
     this.clientPhone,
     required this.title,
-    required this.description,
     required this.totalAmount,
     required this.balance,
     required this.date,
     required this.status,
+    this.items = const [],
     this.payments = const [],
     required this.createdAt,
   });
@@ -108,6 +144,7 @@ class Sale {
       }
     }
 
+    final itemsJson = json['items'] as List<dynamic>? ?? [];
     final paymentsJson = json['payments'] as List<dynamic>? ?? [];
 
     return Sale(
@@ -117,11 +154,13 @@ class Sale {
       clientName: json['clientName'] as String,
       clientPhone: json['clientPhone'] as String?,
       title: json['title'] as String,
-      description: json['description'] as String,
       totalAmount: double.parse(json['totalAmount'].toString()),
       balance: double.parse(json['balance'].toString()),
       date: json['date'] as String,
       status: parseStatus(json['status'] as String),
+      items: itemsJson
+          .map((p) => SaleItemSnapshot.fromJson(p as Map<String, dynamic>))
+          .toList(),
       payments: paymentsJson
           .map((p) => SalePayment.fromJson(p as Map<String, dynamic>))
           .toList(),
@@ -145,7 +184,7 @@ class CatalogStats {
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 class CatalogService {
-  static const String _base = 'http://192.168.70.108:4000/kolekta-api/modules';
+  static final String _base = '${dotenv.env['API_BASE_URL']}/modules';
 
   static Map<String, String> _headers(String token) => {
         'Content-Type': 'application/json',
@@ -199,15 +238,17 @@ class CatalogService {
   }
 
   // ── Crear venta ───────────────────────────────────────────────────────────
+  //
+  // items: lista de { productId?, description?, price?, quantity }
+  // Si productId está presente, el backend toma description/price del catálogo.
 
   static Future<Sale> createSale({
     required String token,
     required String clientName,
     String? clientPhone,
     required String title,
-    required String description,
-    required double totalAmount,
     required String date,
+    required List<Map<String, dynamic>> items,
   }) async {
     final response = await http
         .post(
@@ -218,9 +259,8 @@ class CatalogService {
             if (clientPhone != null && clientPhone.isNotEmpty)
               'clientPhone': clientPhone,
             'title': title,
-            'description': description,
-            'totalAmount': totalAmount,
             'date': date,
+            'items': items,
           }),
         )
         .timeout(const Duration(seconds: 15));
@@ -233,14 +273,16 @@ class CatalogService {
   }
 
   // ── Editar venta ──────────────────────────────────────────────────────────
+  //
+  // Si se envía items, se reemplazan todos los ítems de la venta.
+  // Solo permitido si no hay pagos activos.
 
   static Future<Sale> updateSale({
     required String token,
     required String id,
     String? title,
-    String? description,
     String? clientPhone,
-    double? totalAmount,
+    List<Map<String, dynamic>>? items,
   }) async {
     final response = await http
         .patch(
@@ -248,9 +290,8 @@ class CatalogService {
           headers: _headers(token),
           body: jsonEncode({
             if (title != null) 'title': title,
-            if (description != null) 'description': description,
             if (clientPhone != null) 'clientPhone': clientPhone,
-            if (totalAmount != null) 'totalAmount': totalAmount,
+            if (items != null) 'items': items,
           }),
         )
         .timeout(const Duration(seconds: 15));
@@ -386,7 +427,7 @@ class CatalogService {
     }
   }
 
-  // ── Descargar PDF del comprobante de pago ─────────────────────────────────
+  // ── Comprobante PDF ───────────────────────────────────────────────────────
 
   static Future<List<int>> getPaymentReceiptPdf({
     required String token,

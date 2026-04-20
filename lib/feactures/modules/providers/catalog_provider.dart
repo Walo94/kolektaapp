@@ -9,15 +9,13 @@ class CatalogProvider extends ChangeNotifier {
   bool _actionLoading = false;
   String? _errorMessage;
 
-  // Filtro activo
   SaleStatus? _statusFilter;
 
-  // Paginación
   static const int _pageSize = 20;
   int _currentOffset = 0;
   bool _hasMore = true;
 
-  // ── Getters ──────────────────────────────────────────────────────────────
+  // ── Getters ───────────────────────────────────────────────────────────────
 
   List<Sale> get sales => _sales;
   Sale? get selectedSale => _selectedSale;
@@ -29,16 +27,14 @@ class CatalogProvider extends ChangeNotifier {
   bool get hasMore => _hasMore;
   bool get isEmpty => !_loading && _sales.isEmpty;
 
-  /// Saldo pendiente total (solo ventas con status pending)
   double get pendingBalance => _sales
       .where((s) => s.status == SaleStatus.pending)
       .fold(0.0, (sum, s) => sum + s.balance);
 
-  /// Cantidad de ventas pendientes
   int get pendingCount =>
       _sales.where((s) => s.status == SaleStatus.pending).length;
 
-  // ── Cargar ventas (con reset de paginación) ──────────────────────────────
+  // ── Cargar ventas ─────────────────────────────────────────────────────────
 
   Future<void> loadSales(String token, {bool silent = false}) async {
     _currentOffset = 0;
@@ -74,7 +70,7 @@ class CatalogProvider extends ChangeNotifier {
     }
   }
 
-  // ── Cargar más (paginación) ───────────────────────────────────────────────
+  // ── Cargar más ────────────────────────────────────────────────────────────
 
   Future<void> loadMore(String token) async {
     if (!_hasMore || _loading) return;
@@ -96,9 +92,7 @@ class CatalogProvider extends ChangeNotifier {
       _hasMore = list.length >= _pageSize;
       _currentOffset += list.length;
       notifyListeners();
-    } catch (_) {
-      // silencioso en paginación
-    }
+    } catch (_) {}
   }
 
   // ── Filtro de status ──────────────────────────────────────────────────────
@@ -110,7 +104,7 @@ class CatalogProvider extends ChangeNotifier {
     await loadSales(token);
   }
 
-  // ── Cargar detalle ────────────────────────────────────────────────────────
+  // ── Detalle ───────────────────────────────────────────────────────────────
 
   Future<bool> loadSaleDetail(String token, String id) async {
     _actionLoading = true;
@@ -137,9 +131,8 @@ class CatalogProvider extends ChangeNotifier {
     required String clientName,
     String? clientPhone,
     required String title,
-    required String description,
-    required double totalAmount,
     required String date,
+    required List<Map<String, dynamic>> items,
   }) async {
     _actionLoading = true;
     _errorMessage = null;
@@ -150,9 +143,8 @@ class CatalogProvider extends ChangeNotifier {
         clientName: clientName,
         clientPhone: clientPhone,
         title: title,
-        description: description,
-        totalAmount: totalAmount,
         date: date,
+        items: items,
       );
       _sales.insert(0, sale);
       _total++;
@@ -174,9 +166,8 @@ class CatalogProvider extends ChangeNotifier {
     required String token,
     required String id,
     String? title,
-    String? description,
     String? clientPhone,
-    double? totalAmount,
+    List<Map<String, dynamic>>? items,
   }) async {
     _actionLoading = true;
     _errorMessage = null;
@@ -186,9 +177,8 @@ class CatalogProvider extends ChangeNotifier {
         token: token,
         id: id,
         title: title,
-        description: description,
         clientPhone: clientPhone,
-        totalAmount: totalAmount,
+        items: items,
       );
       _replaceSale(updated);
       notifyListeners();
@@ -265,11 +255,10 @@ class CatalogProvider extends ChangeNotifier {
         amount: amount,
         date: date,
       );
-      // Actualizar la venta en la lista con el nuevo balance
-      final updatedSale = Sale.fromJson(result['sale'] as Map<String, dynamic>);
+      final updatedSale =
+          Sale.fromJson(result['sale'] as Map<String, dynamic>);
       _replaceSale(updatedSale);
       if (_selectedSale?.id == saleId) {
-        // Recargar el detalle para tener los pagos actualizados
         _selectedSale = await CatalogService.getSale(token: token, id: saleId);
       }
       notifyListeners();
@@ -296,7 +285,6 @@ class CatalogProvider extends ChangeNotifier {
     notifyListeners();
     try {
       await CatalogService.cancelPayment(token: token, paymentId: paymentId);
-      // Refrescar la venta afectada
       final updated = await CatalogService.getSale(token: token, id: saleId);
       _replaceSale(updated);
       if (_selectedSale?.id == saleId) _selectedSale = updated;

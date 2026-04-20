@@ -1,8 +1,7 @@
-// lib/features/activity/services/activity_service.dart
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/activity_model.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Filtro de módulo para mapear desde ActivityModule al string que espera el backend
 extension ActivityModuleExt on ActivityModule {
@@ -19,8 +18,8 @@ extension ActivityModuleExt on ActivityModule {
 }
 
 class ActivityService {
-  static const String _base =
-      'http://192.168.70.108:4000/kolekta-api/modules/activities';
+  static final String _base =
+      '${dotenv.env['API_BASE_URL']}/modules/activities';
 
   static Map<String, String> _headers(String token) => {
         'Content-Type': 'application/json',

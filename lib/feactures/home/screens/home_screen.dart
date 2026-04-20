@@ -53,61 +53,67 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: c.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 20),
-              const _HomeHeader(),
-              const SizedBox(height: 32),
-              Text('Acciones rápidas',
-                  style: AppTextStyles.headingSmall
-                      .copyWith(color: c.textPrimary)),
-              const SizedBox(height: 16),
-              _QuickActions(
-                onCreatePressed: () => _showCreateSheet(context),
-              ),
-              const SizedBox(height: 32),
-              Text('Tus herramientas',
-                  style: AppTextStyles.headingSmall
-                      .copyWith(color: c.textPrimary)),
-              const SizedBox(height: 12),
-              _ToolCard(
-                iconPath: 'assets/images/batch.png',
-                title: 'Tandas',
-                subtitle:
-                    'Gestiona turnos y aportaciones grupales con facilidad',
-                badgeText: _activeBatchBadge(activeBatchsCount),
-                badgeColor: AppColors.primaryLight,
-                buttonLabel: 'Gestionar',
-                buttonColor: AppColors.primary,
-                onTap: () => widget.onNavigate?.call(AppRoutes.batchs),
-              ),
-              const SizedBox(height: 12),
-              _ToolCard(
-                iconPath: 'assets/images/catalog.png',
-                title: 'Catálogo',
-                subtitle: 'Controla pedidos grupales y pagos pendientes',
-                badgeText: _pendingCatalogBadge(pendingCount),
-                badgeColor: AppColors.green,
-                buttonLabel: 'Gestionar',
-                buttonColor: AppColors.green,
-                onTap: () => widget.onNavigate?.call(AppRoutes.catalogs),
-              ),
-              const SizedBox(height: 12),
-              _ToolCard(
-                iconPath: 'assets/images/giveaway.png',
-                title: 'Rifas',
-                subtitle: 'Administra números, sorteos y ganadores fácilmente',
-                badgeText: _openGiveawayBadge(openGiveawayCount),
-                badgeColor: AppColors.pink,
-                buttonLabel: 'Gestionar',
-                buttonColor: AppColors.pink,
-                onTap: () => widget.onNavigate?.call(AppRoutes.giveaways),
-              ),
-              const SizedBox(height: 40),
-            ],
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: _loadStats,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 20),
+                const _HomeHeader(),
+                const SizedBox(height: 32),
+                Text('Acciones rápidas',
+                    style: AppTextStyles.headingSmall
+                        .copyWith(color: c.textPrimary)),
+                const SizedBox(height: 16),
+                _QuickActions(
+                  onCreatePressed: () => _showCreateSheet(context),
+                ),
+                const SizedBox(height: 32),
+                Text('Tus herramientas',
+                    style: AppTextStyles.headingSmall
+                        .copyWith(color: c.textPrimary)),
+                const SizedBox(height: 12),
+                _ToolCard(
+                  iconPath: 'assets/images/batch.png',
+                  title: 'Tandas',
+                  subtitle:
+                      'Gestiona turnos y aportaciones grupales con facilidad',
+                  badgeText: _activeBatchBadge(activeBatchsCount),
+                  badgeColor: AppColors.primaryLight,
+                  buttonLabel: 'Gestionar',
+                  buttonColor: AppColors.primary,
+                  onTap: () => widget.onNavigate?.call(AppRoutes.batchs),
+                ),
+                const SizedBox(height: 12),
+                _ToolCard(
+                  iconPath: 'assets/images/catalog.png',
+                  title: 'Catálogo',
+                  subtitle: 'Controla pedidos grupales y pagos pendientes',
+                  badgeText: _pendingCatalogBadge(pendingCount),
+                  badgeColor: AppColors.green,
+                  buttonLabel: 'Gestionar',
+                  buttonColor: AppColors.green,
+                  onTap: () => widget.onNavigate?.call(AppRoutes.catalogs),
+                ),
+                const SizedBox(height: 12),
+                _ToolCard(
+                  iconPath: 'assets/images/giveaway.png',
+                  title: 'Rifas',
+                  subtitle:
+                      'Administra números, sorteos y ganadores fácilmente',
+                  badgeText: _openGiveawayBadge(openGiveawayCount),
+                  badgeColor: AppColors.pink,
+                  buttonLabel: 'Gestionar',
+                  buttonColor: AppColors.pink,
+                  onTap: () => widget.onNavigate?.call(AppRoutes.giveaways),
+                ),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ),
@@ -465,7 +471,8 @@ class _CreateSheet extends StatelessWidget {
         label: 'Nueva Tanda',
         route: AppRoutes.createBatch,
         isBlocked: !isPremium && activeBatchs >= 1,
-        blockedMessage: 'Límite de 1 tanda activa alcanzado.\nActualiza a Premium.',
+        blockedMessage:
+            'Límite de 1 tanda activa alcanzado.\nActualiza a Premium.',
       ),
       (
         iconPath: 'assets/images/catalog.png',
@@ -473,7 +480,8 @@ class _CreateSheet extends StatelessWidget {
         label: 'Nueva Venta',
         route: AppRoutes.createSale,
         isBlocked: !isPremium && pendingSales >= 1,
-        blockedMessage: 'Límite de 1 venta activa alcanzado.\nActualiza a Premium.',
+        blockedMessage:
+            'Límite de 1 venta activa alcanzado.\nActualiza a Premium.',
       ),
       (
         iconPath: 'assets/images/giveaway.png',
@@ -481,7 +489,8 @@ class _CreateSheet extends StatelessWidget {
         label: 'Nueva Rifa',
         route: AppRoutes.createGiveaway,
         isBlocked: !isPremium && openGiveaways >= 1,
-        blockedMessage: 'Límite de 1 rifa activa alcanzado.\nActualiza a Premium.',
+        blockedMessage:
+            'Límite de 1 rifa activa alcanzado.\nActualiza a Premium.',
       ),
     ];
 

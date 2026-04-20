@@ -55,150 +55,155 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: c.background,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _ProfileHeader(),
-            _StatsRow(),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Mi cuenta',
-                      style: AppTextStyles.headingSmall
-                          .copyWith(color: c.textPrimary)),
-                  const SizedBox(height: 10),
-                  _SettingsGroup(items: [
-                    _SettingsItem(
-                      icon: Icons.person_outline_rounded,
-                      iconBg: c.primarySurface,
-                      iconColor: AppColors.primary,
-                      title: 'Información personal',
-                      subtitle: 'Nombre, email, teléfono',
-                      onTap: () => context.push(AppRoutes.personalInfo),
-                    ),
-                    _SettingsItem(
-                      icon: Icons.credit_card_rounded,
-                      iconBg: c.greenLight,
-                      iconColor: AppColors.green,
-                      title: 'Suscripciones',
-                      subtitle: 'Gestiona tu plan y pagos',
-                      onTap: () => context.push(AppRoutes.subscription),
-                    ),
-                    _SettingsItem(
-                      icon: Icons.notifications_none_rounded,
-                      iconBg: c.orangeLight,
-                      iconColor: AppColors.orange,
-                      title: 'Notificaciones',
-                      subtitle: 'Alertas y recordatorios',
-                      onTap: () => context.push(AppRoutes.notifications),
-                      trailing: Consumer<NotificationProvider>(
-                        builder: (_, notifProvider, __) {
-                          if (!notifProvider.hasUnread)
-                            return const SizedBox.shrink();
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 7, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.orange,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              notifProvider.unreadCount > 99
-                                  ? '99+'
-                                  : '${notifProvider.unreadCount}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: _loadStats,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              _ProfileHeader(),
+              _StatsRow(),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Mi cuenta',
+                        style: AppTextStyles.headingSmall
+                            .copyWith(color: c.textPrimary)),
+                    const SizedBox(height: 10),
+                    _SettingsGroup(items: [
+                      _SettingsItem(
+                        icon: Icons.person_outline_rounded,
+                        iconBg: c.primarySurface,
+                        iconColor: AppColors.primary,
+                        title: 'Información personal',
+                        subtitle: 'Nombre, email, teléfono',
+                        onTap: () => context.push(AppRoutes.personalInfo),
+                      ),
+                      _SettingsItem(
+                        icon: Icons.credit_card_rounded,
+                        iconBg: c.greenLight,
+                        iconColor: AppColors.green,
+                        title: 'Suscripciones',
+                        subtitle: 'Gestiona tu plan y pagos',
+                        onTap: () => context.push(AppRoutes.subscription),
+                      ),
+                      _SettingsItem(
+                        icon: Icons.notifications_none_rounded,
+                        iconBg: c.orangeLight,
+                        iconColor: AppColors.orange,
+                        title: 'Notificaciones',
+                        subtitle: 'Alertas y recordatorios',
+                        onTap: () => context.push(AppRoutes.notifications),
+                        trailing: Consumer<NotificationProvider>(
+                          builder: (_, notifProvider, __) {
+                            if (!notifProvider.hasUnread)
+                              return const SizedBox.shrink();
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.orange,
+                                borderRadius: BorderRadius.circular(20),
                               ),
-                            ),
-                          );
-                        },
+                              child: Text(
+                                notifProvider.unreadCount > 99
+                                    ? '99+'
+                                    : '${notifProvider.unreadCount}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                  ]),
-                  const SizedBox(height: 20),
-                  Text('Privacidad y seguridad',
-                      style: AppTextStyles.headingSmall
-                          .copyWith(color: c.textPrimary)),
-                  const SizedBox(height: 10),
-                  _SettingsGroup(items: [
-                    _SettingsItem(
-                      icon: Icons.shield_outlined,
-                      iconBg: c.pinkLight,
-                      iconColor: AppColors.pink,
-                      title: 'Seguridad',
-                      subtitle: 'Contraseña y autenticación',
-                      onTap: () => context.push(AppRoutes.security),
-                    ),
-                    _SettingsItem(
-                      icon: Icons.lock_outline_rounded,
-                      iconBg: c.purpleLight,
-                      iconColor: AppColors.purple,
-                      title: 'Privacidad',
-                      subtitle: 'Datos y permisos',
-                      onTap: () => context.push(AppRoutes.privacy),
-                    ),
-                  ]),
-                  const SizedBox(height: 20),
-                  Text('Soporte',
-                      style: AppTextStyles.headingSmall
-                          .copyWith(color: c.textPrimary)),
-                  const SizedBox(height: 10),
-                  _SettingsGroup(items: [
-                    _SettingsItem(
-                      icon: Icons.help_outline_rounded,
-                      iconBg: c.orangeLight,
-                      iconColor: AppColors.orange,
-                      title: 'Centro de ayuda',
-                      subtitle: null,
-                      onTap: () => context.push(AppRoutes.help),
-                    ),
-                    _SettingsItem(
-                      icon: Icons.chat_bubble_outline_rounded,
-                      iconBg: c.greenLight,
-                      iconColor: AppColors.green,
-                      title: 'Contactar soporte',
-                      subtitle: null,
-                      onTap: () {},
-                    ),
-                  ]),
-                  const SizedBox(height: 20),
+                    ]),
+                    const SizedBox(height: 20),
+                    Text('Privacidad y seguridad',
+                        style: AppTextStyles.headingSmall
+                            .copyWith(color: c.textPrimary)),
+                    const SizedBox(height: 10),
+                    _SettingsGroup(items: [
+                      _SettingsItem(
+                        icon: Icons.shield_outlined,
+                        iconBg: c.pinkLight,
+                        iconColor: AppColors.pink,
+                        title: 'Seguridad',
+                        subtitle: 'Contraseña y autenticación',
+                        onTap: () => context.push(AppRoutes.security),
+                      ),
+                      _SettingsItem(
+                        icon: Icons.lock_outline_rounded,
+                        iconBg: c.purpleLight,
+                        iconColor: AppColors.purple,
+                        title: 'Privacidad',
+                        subtitle: 'Datos y permisos',
+                        onTap: () => context.push(AppRoutes.privacy),
+                      ),
+                    ]),
+                    const SizedBox(height: 20),
+                    Text('Soporte',
+                        style: AppTextStyles.headingSmall
+                            .copyWith(color: c.textPrimary)),
+                    const SizedBox(height: 10),
+                    _SettingsGroup(items: [
+                      _SettingsItem(
+                        icon: Icons.help_outline_rounded,
+                        iconBg: c.orangeLight,
+                        iconColor: AppColors.orange,
+                        title: 'Centro de ayuda',
+                        subtitle: null,
+                        onTap: () => context.push(AppRoutes.help),
+                      ),
+                      _SettingsItem(
+                        icon: Icons.chat_bubble_outline_rounded,
+                        iconBg: c.greenLight,
+                        iconColor: AppColors.green,
+                        title: 'Contactar soporte',
+                        subtitle: null,
+                        onTap: () {},
+                      ),
+                    ]),
+                    const SizedBox(height: 20),
 
-                  // ── Cerrar sesión ──────────────────────────
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _confirmLogout(context),
-                      icon: const Icon(Icons.logout_rounded,
-                          color: AppColors.error),
-                      label: Text('Cerrar sesión',
-                          style: AppTextStyles.buttonMedium
-                              .copyWith(color: AppColors.error)),
-                      style: OutlinedButton.styleFrom(
-                        side:
-                            BorderSide(color: AppColors.error.withOpacity(0.3)),
-                        backgroundColor: AppColors.error.withOpacity(0.05),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                    // ── Cerrar sesión ──────────────────────────
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _confirmLogout(context),
+                        icon: const Icon(Icons.logout_rounded,
+                            color: AppColors.error),
+                        label: Text('Cerrar sesión',
+                            style: AppTextStyles.buttonMedium
+                                .copyWith(color: AppColors.error)),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                              color: AppColors.error.withOpacity(0.3)),
+                          backgroundColor: AppColors.error.withOpacity(0.05),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: Text('Kolekta v1.0.0',
-                        style: AppTextStyles.labelSmall
-                            .copyWith(color: c.textHint)),
-                  ),
-                  const SizedBox(height: 32),
-                ],
+                    const SizedBox(height: 12),
+                    Center(
+                      child: Text('Kolekta v1.0.0',
+                          style: AppTextStyles.labelSmall
+                              .copyWith(color: c.textHint)),
+                    ),
+                    const SizedBox(height: 32),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

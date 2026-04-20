@@ -32,6 +32,9 @@ class AppRoutes {
   static const String saleDetail = '/catalogs/sale/:id';
   static const String createPayment = '/catalogs/sale/:id/payment';
 
+  static const String products = '/catalogs/products';
+  static const String productForm = '/catalogs/products/form';
+
   // ── Rifas ──────────────────────────────────────────────────────────────────
   static const String giveaways = '/giveaways';
   static const String createGiveaway = '/giveaways/create';

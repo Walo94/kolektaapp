@@ -9,10 +9,57 @@ import '../providers/subscription_provider.dart';
 import '../../../core/constants/app_routes.dart';
 import 'package:go_router/go_router.dart';
 
-class PersonalInfoScreen extends StatelessWidget {
+class PersonalInfoScreen extends StatefulWidget {
   const PersonalInfoScreen({super.key});
 
-  void _showSnack(BuildContext context, String message, {bool isError = false}) {
+  @override
+  State<PersonalInfoScreen> createState() => _PersonalInfoScreenState();
+}
+
+class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
+
+  // ── Función principal de refrescar ─────────────────────────────────────
+  Future<void> _refreshUser() async {
+    final authProvider = context.read<AuthProvider>();
+
+    try {
+      await authProvider.refreshUserInfo();
+
+      await Future.delayed(const Duration(milliseconds: 700));
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar( 
+        content: const Text('Información actualizada'),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error al actualizar: ${authProvider.errorMessage ?? "Inténtalo de nuevo"}',
+          ),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    }
+  }
+
+  void _showSnack(BuildContext context, String message,
+      {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -29,8 +76,18 @@ class PersonalInfoScreen extends StatelessWidget {
     try {
       final dt = DateTime.parse(rawDate).toLocal();
       const months = [
-        'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+        'enero',
+        'febrero',
+        'marzo',
+        'abril',
+        'mayo',
+        'junio',
+        'julio',
+        'agosto',
+        'septiembre',
+        'octubre',
+        'noviembre',
+        'diciembre',
       ];
       return '${dt.day} de ${months[dt.month - 1]} de ${dt.year}';
     } catch (_) {
@@ -61,98 +118,103 @@ class PersonalInfoScreen extends StatelessWidget {
             style: AppTextStyles.headingMedium.copyWith(color: c.textPrimary)),
         centerTitle: false,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: _refreshUser,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 20),
 
-            // ── Datos básicos ──────────────────────────────────
-            Text('Datos de la cuenta',
-                style:
-                    AppTextStyles.headingSmall.copyWith(color: c.textPrimary)),
-            const SizedBox(height: 12),
+              // ── Datos básicos ──────────────────────────────────
+              Text('Datos de la cuenta',
+                  style: AppTextStyles.headingSmall
+                      .copyWith(color: c.textPrimary)),
+              const SizedBox(height: 12),
 
-            _SectionCard(
-              children: [
-                // Nombre completo (solo lectura)
-                _InfoTile(
-                  icon: Icons.person_outline_rounded,
-                  iconBg: c.primarySurface,
-                  iconColor: AppColors.primary,
-                  label: 'Nombre completo',
-                  value: auth.displayName,
-                ),
-                _Divider(),
-                // Correo electrónico con badge de verificación
-                _InfoTile(
-                  icon: Icons.email_outlined,
-                  iconBg: isEmailVerified ? c.successLight : c.orangeLight,
-                  iconColor:
-                      isEmailVerified ? AppColors.success : AppColors.orange,
-                  label: 'Correo electrónico',
-                  value: auth.displayEmail,
-                  trailing: _VerifiedBadge(verified: isEmailVerified),
-                ),
-                _Divider(),
-                // Teléfono sin badge
-                _InfoTile(
-                  icon: Icons.phone_outlined,
-                  iconBg: c.purpleLight,
-                  iconColor: AppColors.purple,
-                  label: 'Teléfono',
-                  value: hasPhone ? auth.displayPhone : 'No registrado',
-                ),
-              ],
-            ),
+              _SectionCard(
+                children: [
+                  // Nombre completo (solo lectura)
+                  _InfoTile(
+                    icon: Icons.person_outline_rounded,
+                    iconBg: c.primarySurface,
+                    iconColor: AppColors.primary,
+                    label: 'Nombre completo',
+                    value: auth.displayName,
+                  ),
+                  _Divider(),
+                  // Correo electrónico con badge de verificación
+                  _InfoTile(
+                    icon: Icons.email_outlined,
+                    iconBg: isEmailVerified ? c.successLight : c.orangeLight,
+                    iconColor:
+                        isEmailVerified ? AppColors.success : AppColors.orange,
+                    label: 'Correo electrónico',
+                    value: auth.displayEmail,
+                    trailing: _VerifiedBadge(verified: isEmailVerified),
+                  ),
+                  _Divider(),
+                  // Teléfono sin badge
+                  _InfoTile(
+                    icon: Icons.phone_outlined,
+                    iconBg: c.purpleLight,
+                    iconColor: AppColors.purple,
+                    label: 'Teléfono',
+                    value: hasPhone ? auth.displayPhone : 'No registrado',
+                  ),
+                ],
+              ),
 
-            const SizedBox(height: 28),
+              const SizedBox(height: 28),
 
-            // ── Tipo de cuenta ─────────────────────────────────
-            Text('Tipo de cuenta',
-                style:
-                    AppTextStyles.headingSmall.copyWith(color: c.textPrimary)),
-            const SizedBox(height: 12),
+              // ── Tipo de cuenta ─────────────────────────────────
+              Text('Tipo de cuenta',
+                  style: AppTextStyles.headingSmall
+                      .copyWith(color: c.textPrimary)),
+              const SizedBox(height: 12),
 
-            _AccountPlanCard(),
+              _AccountPlanCard(),
 
-            const SizedBox(height: 28),
+              const SizedBox(height: 28),
 
-            // ── Detalles ───────────────────────────────────────
-            Text('Detalles',
-                style:
-                    AppTextStyles.headingSmall.copyWith(color: c.textPrimary)),
-            const SizedBox(height: 12),
+              // ── Detalles ───────────────────────────────────────
+              Text('Detalles',
+                  style: AppTextStyles.headingSmall
+                      .copyWith(color: c.textPrimary)),
+              const SizedBox(height: 12),
 
-            _SectionCard(
-              children: [
-                _InfoTile(
-                  icon: Icons.badge_outlined,
-                  iconBg: c.purpleLight,
-                  iconColor: AppColors.purple,
-                  label: 'ID de usuario',
-                  value: user?.id ?? '—',
-                  trailing:
-                      Icon(Icons.copy_rounded, size: 16, color: c.textHint),
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: user?.id ?? ''));
-                    _showSnack(context, 'ID copiado al portapapeles');
-                  },
-                ),
-                _Divider(),
-                _InfoTile(
-                  icon: Icons.calendar_today_outlined,
-                  iconBg: c.orangeLight,
-                  iconColor: AppColors.orange,
-                  label: 'Miembro desde',
-                  value: _formatDate(user?.createdAt),
-                ),
-              ],
-            ),
+              _SectionCard(
+                children: [
+                  _InfoTile(
+                    icon: Icons.badge_outlined,
+                    iconBg: c.purpleLight,
+                    iconColor: AppColors.purple,
+                    label: 'ID de usuario',
+                    value: user?.id ?? '—',
+                    trailing:
+                        Icon(Icons.copy_rounded, size: 16, color: c.textHint),
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: user?.id ?? ''));
+                      _showSnack(context, 'ID copiado al portapapeles');
+                    },
+                  ),
+                  _Divider(),
+                  _InfoTile(
+                    icon: Icons.calendar_today_outlined,
+                    iconBg: c.orangeLight,
+                    iconColor: AppColors.orange,
+                    label: 'Miembro desde',
+                    value: _formatDate(user?.createdAt),
+                  ),
+                ],
+              ),
 
-            const SizedBox(height: 40),
-          ],
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
@@ -272,9 +334,7 @@ class _VerifiedBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            verified
-                ? Icons.check_circle_rounded
-                : Icons.schedule_rounded,
+            verified ? Icons.check_circle_rounded : Icons.schedule_rounded,
             size: 12,
             color: verified ? AppColors.success : AppColors.orange,
           ),
@@ -300,7 +360,8 @@ class _AccountPlanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.kolekta;
-    final sub = context.watch<SubscriptionProvider>();   // ← Usamos SubscriptionProvider
+    final sub =
+        context.watch<SubscriptionProvider>(); // ← Usamos SubscriptionProvider
     final bool isPremium = sub.hasActiveSubscription;
 
     return Container(
@@ -334,14 +395,16 @@ class _AccountPlanCard extends StatelessWidget {
               children: [
                 Text(
                   isPremium ? 'Miembro Premium' : 'Plan Gratuito',
-                  style: AppTextStyles.labelLarge.copyWith(color: c.textPrimary),
+                  style:
+                      AppTextStyles.labelLarge.copyWith(color: c.textPrimary),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   isPremium
                       ? 'Acceso a todas las funciones sin límites'
                       : 'Actualiza para crear ilimitadamente rifas, tandas y más',
-                  style: AppTextStyles.bodySmall.copyWith(color: c.textSecondary),
+                  style:
+                      AppTextStyles.bodySmall.copyWith(color: c.textSecondary),
                 ),
               ],
             ),
@@ -350,7 +413,8 @@ class _AccountPlanCard extends StatelessWidget {
             GestureDetector(
               onTap: () => context.push(AppRoutes.subscription),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                 decoration: BoxDecoration(
                   color: AppColors.orange,
                   borderRadius: BorderRadius.circular(20),

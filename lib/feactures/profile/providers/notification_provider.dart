@@ -1,5 +1,3 @@
-// lib/feactures/profile/providers/notification_provider.dart
-
 import 'package:flutter/material.dart';
 import '../models/notification_model.dart';
 import '../services/notification_service.dart';

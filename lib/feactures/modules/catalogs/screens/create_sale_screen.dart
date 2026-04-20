@@ -12,7 +12,10 @@ import '../../../../shared/widgets/kolekta_button.dart';
 import '../../../../shared/widgets/kolekta_text_field.dart';
 import '../../../admin/providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
+import '../../providers/product_provider.dart';
+import '../../services/product_service.dart' show Product;
 import '../../services/catalog_service.dart';
+import 'product_picker_screen.dart';
 
 class CreateSaleScreen extends StatefulWidget {
   const CreateSaleScreen({super.key, this.saleToEdit});
@@ -27,27 +30,40 @@ class CreateSaleScreen extends StatefulWidget {
 class _CreateSaleScreenState extends State<CreateSaleScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final _clientNameCtrl  = TextEditingController();
+  final _clientNameCtrl = TextEditingController();
   final _clientPhoneCtrl = TextEditingController();
-  final _titleCtrl       = TextEditingController();
-  final _descCtrl        = TextEditingController();
-  final _amountCtrl      = TextEditingController();
+  final _titleCtrl = TextEditingController();
 
   DateTime _selectedDate = DateTime.now();
+  List<SelectedSaleItem> _items = [];
 
   bool get _isEdit => widget.saleToEdit != null;
+
+  double get _totalAmount =>
+      _items.fold(0.0, (sum, i) => sum + i.subtotal);
 
   @override
   void initState() {
     super.initState();
     if (_isEdit) {
       final s = widget.saleToEdit!;
-      _clientNameCtrl.text  = s.clientName;
+      _clientNameCtrl.text = s.clientName;
       _clientPhoneCtrl.text = s.clientPhone ?? '';
-      _titleCtrl.text       = s.title;
-      _descCtrl.text        = s.description;
-      _amountCtrl.text      = s.totalAmount.toStringAsFixed(2);
+      _titleCtrl.text = s.title;
       _selectedDate = DateTime.tryParse(s.date) ?? DateTime.now();
+
+      // Cargar items existentes desde los snapshots de la venta
+      if (s.items.isNotEmpty) {
+        _items = s.items
+            .map((item) => SelectedSaleItem(
+                  productId: item.productId,
+                  productName: item.productName,
+                  unitPrice: item.unitPrice,
+                  quantity: item.quantity,
+                  isFree: item.productId == null,
+                ))
+            .toList();
+      }
     }
   }
 
@@ -56,8 +72,6 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
     _clientNameCtrl.dispose();
     _clientPhoneCtrl.dispose();
     _titleCtrl.dispose();
-    _descCtrl.dispose();
-    _amountCtrl.dispose();
     super.dispose();
   }
 
@@ -85,11 +99,10 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
       final contact = await FlutterContacts.openExternalPick();
       if (contact == null || !mounted) return;
 
-      // Cargar detalles completos (incluye teléfonos)
       final full = await FlutterContacts.getContact(contact.id);
       if (full == null) return;
 
-      final name  = full.displayName;
+      final name = full.displayName;
       final phone = full.phones.isNotEmpty
           ? full.phones.first.number.replaceAll(RegExp(r'\s+'), '')
           : null;
@@ -98,9 +111,7 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
         _clientNameCtrl.text = name;
         if (phone != null) _clientPhoneCtrl.text = phone;
       });
-    } catch (_) {
-      // El usuario canceló la selección — no hacer nada
-    }
+    } catch (_) {}
   }
 
   void _showPermissionDialog() {
@@ -139,8 +150,7 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
       lastDate: DateTime(2030),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-          colorScheme:
-              ColorScheme.light(primary: AppColors.green),
+          colorScheme: ColorScheme.light(primary: AppColors.green),
         ),
         child: child!,
       ),
@@ -148,15 +158,40 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
     if (picked != null) setState(() => _selectedDate = picked);
   }
 
+  // ── Abrir picker de productos ────────────────────────────────────────────
+
+  Future<void> _pickProducts() async {
+    final result = await Navigator.of(context).push<List<SelectedSaleItem>>(
+      MaterialPageRoute(
+        builder: (_) => ProductPickerScreen(initialItems: List.from(_items)),
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      setState(() => _items = result);
+    }
+  }
+
   // ── Guardar / crear venta ────────────────────────────────────────────────
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final token   = context.read<AuthProvider>().token ?? '';
-    final prov    = context.read<CatalogProvider>();
-    final amount  = double.tryParse(_amountCtrl.text.replaceAll(',', '')) ?? 0;
+    if (_items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Agrega al menos un producto a la venta'),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ));
+      return;
+    }
+
+    final token = context.read<AuthProvider>().token ?? '';
+    final prov = context.read<CatalogProvider>();
     final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+    final itemInputs = _items.map((i) => i.toItemInput()).toList();
 
     bool ok;
 
@@ -165,11 +200,10 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
         token: token,
         id: widget.saleToEdit!.id,
         title: _titleCtrl.text.trim(),
-        description: _descCtrl.text.trim(),
         clientPhone: _clientPhoneCtrl.text.trim().isEmpty
             ? null
             : _clientPhoneCtrl.text.trim(),
-        totalAmount: amount,
+        items: itemInputs,
       );
     } else {
       final created = await prov.createSale(
@@ -179,9 +213,8 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
             ? null
             : _clientPhoneCtrl.text.trim(),
         title: _titleCtrl.text.trim(),
-        description: _descCtrl.text.trim(),
-        totalAmount: amount,
         date: dateStr,
+        items: itemInputs,
       );
       ok = created != null;
     }
@@ -204,7 +237,7 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final c       = context.kolekta;
+    final c = context.kolekta;
     final loading = context.watch<CatalogProvider>().actionLoading;
 
     return Scaffold(
@@ -218,7 +251,8 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
         ),
         title: Text(
           _isEdit ? 'Editar venta' : 'Nueva venta',
-          style: AppTextStyles.headingSmall.copyWith(color: c.textPrimary),
+          style:
+              AppTextStyles.headingSmall.copyWith(color: c.textPrimary),
         ),
         centerTitle: true,
       ),
@@ -234,7 +268,6 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
                     style: AppTextStyles.labelMedium
                         .copyWith(color: c.textSecondary)),
                 const Spacer(),
-                // Botón de selección de contacto (solo al crear, no al editar)
                 if (!_isEdit)
                   TextButton.icon(
                     onPressed: _pickContact,
@@ -252,13 +285,11 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            // Campo nombre con icono de contacto al final cuando no está en edición
             KolektaTextField(
               controller: _clientNameCtrl,
               hint: 'Nombre del cliente *',
               prefixIcon: Icons.person_outline_rounded,
-              enabled: !_isEdit, // no se edita el cliente
-              // Icono de contacto dentro del campo para acceso rápido
+              enabled: !_isEdit,
               suffixIcon: !_isEdit
                   ? IconButton(
                       icon: Icon(Icons.contacts_outlined,
@@ -280,7 +311,7 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
 
             const SizedBox(height: 20),
 
-            // ── Venta ────────────────────────────────────────────────────
+            // ── Datos de la venta ────────────────────────────────────────
             Text('Venta',
                 style: AppTextStyles.labelMedium
                     .copyWith(color: c.textSecondary)),
@@ -291,32 +322,6 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
               prefixIcon: Icons.label_outline_rounded,
               validator: (v) =>
                   v!.trim().isEmpty ? 'Ingresa un título' : null,
-            ),
-            const SizedBox(height: 10),
-            KolektaTextField(
-              controller: _descCtrl,
-              hint: 'Descripción de lo vendido *',
-              prefixIcon: Icons.notes_rounded,
-              maxLines: 3,
-              validator: (v) =>
-                  v!.trim().isEmpty ? 'Ingresa una descripción' : null,
-            ),
-            const SizedBox(height: 10),
-            KolektaTextField(
-              controller: _amountCtrl,
-              hint: 'Monto total *',
-              prefixIcon: Icons.attach_money_rounded,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(
-                    RegExp(r'^\d+\.?\d{0,2}')),
-              ],
-              validator: (v) {
-                final n = double.tryParse(v?.replaceAll(',', '') ?? '');
-                if (n == null || n <= 0) return 'Ingresa un monto válido';
-                return null;
-              },
             ),
 
             const SizedBox(height: 20),
@@ -355,6 +360,133 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
               ),
             ),
 
+            const SizedBox(height: 20),
+
+            // ── Productos ────────────────────────────────────────────────
+            Row(
+              children: [
+                Text('Productos',
+                    style: AppTextStyles.labelMedium
+                        .copyWith(color: c.textSecondary)),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: _pickProducts,
+                  icon: Icon(Icons.add_rounded,
+                      size: 16, color: AppColors.green),
+                  label: Text(
+                    _items.isEmpty ? 'Agregar' : 'Editar',
+                    style: AppTextStyles.labelSmall
+                        .copyWith(color: AppColors.green),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            if (_items.isEmpty)
+              // Placeholder vacío
+              GestureDetector(
+                onTap: _pickProducts,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: c.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: c.border),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.inventory_2_outlined,
+                          size: 36, color: c.textHint),
+                      const SizedBox(height: 8),
+                      Text('Sin productos agregados',
+                          style: AppTextStyles.labelMedium
+                              .copyWith(color: c.textSecondary)),
+                      const SizedBox(height: 4),
+                      Text('Toca para buscar en tu catálogo',
+                          style: AppTextStyles.bodySmall
+                              .copyWith(color: c.textHint)),
+                    ],
+                  ),
+                ),
+              )
+            else ...[
+              // Lista de productos seleccionados
+              Container(
+                decoration: BoxDecoration(
+                  color: c.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: c.border),
+                ),
+                child: Column(
+                  children: [
+                    ..._items.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final item = entry.value;
+                      final isLast = i == _items.length - 1;
+                      final products =
+                          context.read<ProductProvider>().products;
+                      final liveProduct = item.productId != null
+                          ? products
+                              .where((p) => p.id == item.productId)
+                              .firstOrNull
+                          : null;
+
+                      return Column(
+                        children: [
+                          _SaleItemRow(
+                            item: item,
+                            liveImageUrl: liveProduct?.imageUrl,
+                            onRemove: () =>
+                                setState(() => _items.removeAt(i)),
+                            onQuantityChanged: (q) {
+                              if (q <= 0) {
+                                setState(() => _items.removeAt(i));
+                              } else {
+                                setState(() => _items[i].quantity = q);
+                              }
+                            },
+                          ),
+                          if (!isLast) Divider(height: 1, color: c.divider),
+                        ],
+                      );
+                    }),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Total
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: c.greenLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Total de la venta',
+                        style: AppTextStyles.labelMedium
+                            .copyWith(color: AppColors.green)),
+                    Text(
+                      '\$${_totalAmount.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.green,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             const SizedBox(height: 32),
 
             KolektaButton(
@@ -367,6 +499,176 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
             const SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── _SaleItemRow ─────────────────────────────────────────────────────────────
+
+class _SaleItemRow extends StatelessWidget {
+  const _SaleItemRow({
+    required this.item,
+    required this.onRemove,
+    required this.onQuantityChanged,
+    this.liveImageUrl,
+  });
+
+  final SelectedSaleItem item;
+  final VoidCallback onRemove;
+  final ValueChanged<int> onQuantityChanged;
+  /// URL de la imagen obtenida del producto vivo (null si fue eliminado o es libre)
+  final String? liveImageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.kolekta;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(
+        children: [
+          // Imagen del producto vivo; si fue eliminado o es libre, muestra placeholder
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: liveImageUrl != null && liveImageUrl!.isNotEmpty
+                ? Image.network(
+                    liveImageUrl!,
+                    width: 44,
+                    height: 44,
+                    fit: BoxFit.cover,
+                    cacheWidth: 120,
+                    cacheHeight: 120,
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return _MiniPlaceholder(c: c);
+                    },
+                    errorBuilder: (_, __, ___) => _MiniPlaceholder(c: c),
+                  )
+                : _MiniPlaceholder(c: c),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    if (item.isFree)
+                      Container(
+                        margin: const EdgeInsets.only(right: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppColors.orange.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text('libre',
+                            style: TextStyle(
+                                fontSize: 9,
+                                color: AppColors.orange,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                    Flexible(
+                      child: Text(
+                        item.productName,
+                        style: AppTextStyles.labelMedium
+                            .copyWith(color: c.textPrimary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '\$${item.unitPrice.toStringAsFixed(2)} × ${item.quantity} = \$${item.subtotal.toStringAsFixed(2)}',
+                  style: AppTextStyles.labelSmall
+                      .copyWith(color: AppColors.green),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Controles de cantidad
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _QtyBtn(
+                icon: Icons.remove_rounded,
+                onTap: () => onQuantityChanged(item.quantity - 1),
+                color: item.quantity == 1 ? AppColors.error : c.textSecondary,
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Text('${item.quantity}',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: c.textPrimary)),
+              ),
+              _QtyBtn(
+                icon: Icons.add_rounded,
+                onTap: () => onQuantityChanged(item.quantity + 1),
+                color: AppColors.green,
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: onRemove,
+                child: Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(Icons.close_rounded,
+                      size: 14, color: AppColors.error),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniPlaceholder extends StatelessWidget {
+  const _MiniPlaceholder({required this.c});
+  final KolektaColors c;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44,
+      height: 44,
+      color: c.surfaceVariant,
+      child: Icon(Icons.inventory_2_outlined, color: c.textHint, size: 20),
+    );
+  }
+}
+
+class _QtyBtn extends StatelessWidget {
+  const _QtyBtn({
+    required this.icon,
+    required this.onTap,
+    required this.color,
+  });
+  final IconData icon;
+  final VoidCallback onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 26,
+        height: 26,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(7),
+        ),
+        child: Icon(icon, size: 14, color: color),
       ),
     );
   }

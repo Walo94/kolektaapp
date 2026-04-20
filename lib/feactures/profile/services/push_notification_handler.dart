@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../../../core/constants/app_routes.dart';
 import '../models/notification_model.dart';
 import '../providers/notification_provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class PushNotificationHandler {
   PushNotificationHandler._();
@@ -14,7 +15,7 @@ class PushNotificationHandler {
 
   static final navigatorKey = GlobalKey<NavigatorState>();
 
-  static const String _base = 'http://192.168.70.108:4000/kolekta-api/modules';
+  static final String _base = '${dotenv.env['API_BASE_URL']}/modules';
 
   final _localNotifs = FlutterLocalNotificationsPlugin();
   NotificationProvider? _provider;

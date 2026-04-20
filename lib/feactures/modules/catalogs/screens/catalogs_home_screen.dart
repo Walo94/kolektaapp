@@ -6,10 +6,12 @@ import '../../../../core/theme/kolekta_colors.dart';
 import '../../../../shared/widgets/kolekta_pagination.dart';
 import '../../../admin/providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
+import '../../providers/product_provider.dart';
 import '../../services/catalog_service.dart';
 import '../../../profile/providers/subscription_provider.dart';
 import 'create_sale_screen.dart';
 import 'sale_detail_screen.dart';
+import 'products_home_screen.dart';
 
 class CatalogsHomeScreen extends StatefulWidget {
   const CatalogsHomeScreen({super.key});
@@ -67,7 +69,6 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
 
   void _goToCreate() {
     final sub = context.read<SubscriptionProvider>();
-
     final bool hasActiveSubscription = sub.hasActiveSubscription;
     final int currentSalesCount = _getOpenSalesCount();
 
@@ -87,6 +88,12 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
 
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const CreateSaleScreen()),
+    );
+  }
+
+  void _goToProducts() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ProductsHomeScreen()),
     );
   }
 
@@ -116,7 +123,7 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
             children: [
               SizedBox(height: safeArea.top + 16),
 
-              // ── Header ──────────────────────────────────────────────────
+              // ── Header ────────────────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
@@ -133,13 +140,38 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
                                 .copyWith(color: c.textSecondary)),
                       ],
                     ),
-                    FloatingActionButton(
-                      heroTag: 'catalog_fab',
-                      onPressed: _goToCreate,
-                      backgroundColor: AppColors.green,
-                      mini: true,
-                      elevation: 4,
-                      child: const Icon(Icons.add_rounded, color: Colors.white),
+                    Row(
+                      children: [
+                        // ── Botón mis productos ────────────────────────────
+                        Tooltip(
+                          message: 'Mis productos',
+                          child: GestureDetector(
+                            onTap: _goToProducts,
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: c.surface,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: c.border),
+                              ),
+                              child: Icon(Icons.inventory_2_outlined,
+                                  size: 18, color: c.textSecondary),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // ── Botón nueva venta ──────────────────────────────
+                        FloatingActionButton(
+                          heroTag: 'catalog_fab',
+                          onPressed: _goToCreate,
+                          backgroundColor: AppColors.green,
+                          mini: true,
+                          elevation: 4,
+                          child: const Icon(Icons.add_rounded,
+                              color: Colors.white),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -147,7 +179,7 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
 
               const SizedBox(height: 16),
 
-              // ── Tarjeta resumen ──────────────────────────────────────────
+              // ── Tarjeta resumen ───────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Container(
@@ -186,7 +218,6 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
                         ),
                       ),
                       const SizedBox(width: 12),
-                      // Badge: pedidos pendientes
                       Container(
                         width: 70,
                         height: 70,
@@ -221,7 +252,7 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
 
               const SizedBox(height: 16),
 
-              // ── Tabs de status ───────────────────────────────────────────
+              // ── Tabs ──────────────────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Container(
@@ -252,7 +283,7 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
 
               const SizedBox(height: 12),
 
-              // ── Lista ────────────────────────────────────────────────────
+              // ── Lista ─────────────────────────────────────────────────────
               Expanded(
                 child: _buildList(context, prov, token, c),
               ),
@@ -282,7 +313,8 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
             Icon(Icons.wifi_off_rounded, size: 48, color: c.textHint),
             const SizedBox(height: 12),
             Text(prov.errorMessage!,
-                style: AppTextStyles.bodySmall.copyWith(color: c.textSecondary),
+                style:
+                    AppTextStyles.bodySmall.copyWith(color: c.textSecondary),
                 textAlign: TextAlign.center),
             const SizedBox(height: 16),
             TextButton.icon(
@@ -309,7 +341,6 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // ← Imagen en lugar del icono
                     Image.asset(
                       'assets/images/catalog2.png',
                       width: 120,
@@ -317,20 +348,17 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
                       fit: BoxFit.contain,
                     ),
                     const SizedBox(height: 28),
-
                     Text(
                       'Sin ventas registradas',
                       style: AppTextStyles.labelLarge
                           .copyWith(color: c.textSecondary),
                       textAlign: TextAlign.center,
                     ),
-
                     const SizedBox(height: 6),
-
                     Text(
                       'Toca + para registrar una venta',
-                      style:
-                          AppTextStyles.bodySmall.copyWith(color: c.textHint),
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: c.textHint),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -348,7 +376,7 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: prov.sales.length + 1, // +1 para paginación
+        itemCount: prov.sales.length + 1,
         itemBuilder: (_, i) {
           if (i < prov.sales.length) {
             return Padding(
@@ -356,13 +384,11 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
               child: _SaleCard(
                 sale: prov.sales[i],
                 onTap: () => _goToDetail(prov.sales[i]),
-                // Solo long press activa el menú contextual; sin botón ...
                 onContextMenu: () =>
                     _showContextMenu(context, prov.sales[i], token),
               ),
             );
           }
-          // Componente de paginación al final
           return KolektaPagination(
             loaded: prov.sales.length,
             total: prov.total,
@@ -412,8 +438,6 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
                 ),
               ),
               Divider(height: 1, color: c.divider),
-
-              // Ver detalle
               _SheetOption(
                 icon: Icons.visibility_outlined,
                 iconBg: c.primarySurface,
@@ -424,8 +448,6 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
                   _goToDetail(sale);
                 },
               ),
-
-              // Editar (solo si está pendiente y sin pagos)
               if (sale.status == SaleStatus.pending)
                 _SheetOption(
                   icon: Icons.edit_outlined,
@@ -439,8 +461,6 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
                     ));
                   },
                 ),
-
-              // Cancelar (solo si está pendiente)
               if (sale.status == SaleStatus.pending)
                 _SheetOption(
                   icon: Icons.cancel_outlined,
@@ -452,8 +472,6 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
                     _confirmCancel(context, sale, token);
                   },
                 ),
-
-              // Eliminar
               _SheetOption(
                 icon: Icons.delete_outline_rounded,
                 iconBg: AppColors.error.withOpacity(0.1),
@@ -571,7 +589,7 @@ class _SaleCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      onLongPress: onContextMenu, // menú contextual solo con long press
+      onLongPress: onContextMenu,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -579,19 +597,18 @@ class _SaleCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: c.border),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10),
+            BoxShadow(
+                color: Colors.black.withOpacity(0.04), blurRadius: 10),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Fila superior: número de orden + status ─────────────────
-            // Se eliminó el botón "..." — usar long press para el menú
             Row(
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: c.greenLight,
                     borderRadius: BorderRadius.circular(8),
@@ -607,30 +624,51 @@ class _SaleCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 _SaleStatusBadge(status: sale.status),
                 const Spacer(),
+                // Indicador de número de productos
+                if (sale.items.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: c.surfaceVariant,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.inventory_2_outlined,
+                            size: 11, color: c.textHint),
+                        const SizedBox(width: 3),
+                        Text(
+                          '${sale.items.length}',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: c.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
-
             const SizedBox(height: 10),
-
-            // ── Título y cliente ────────────────────────────────────────
             Text(sale.title,
-                style: AppTextStyles.labelLarge.copyWith(color: c.textPrimary)),
+                style:
+                    AppTextStyles.labelLarge.copyWith(color: c.textPrimary)),
             const SizedBox(height: 2),
             Row(
               children: [
-                Icon(Icons.person_outline_rounded, size: 13, color: c.textHint),
+                Icon(Icons.person_outline_rounded,
+                    size: 13, color: c.textHint),
                 const SizedBox(width: 4),
                 Text(sale.clientName,
                     style: AppTextStyles.bodySmall
                         .copyWith(color: c.textSecondary)),
               ],
             ),
-
             const SizedBox(height: 10),
             Divider(height: 1, color: c.divider),
             const SizedBox(height: 10),
-
-            // ── Montos ──────────────────────────────────────────────────
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -756,7 +794,8 @@ class _SheetOption extends StatelessWidget {
       title: Text(label,
           style: AppTextStyles.labelLarge
               .copyWith(color: labelColor ?? c.textPrimary)),
-      trailing: Icon(Icons.chevron_right_rounded, color: c.textHint, size: 18),
+      trailing:
+          Icon(Icons.chevron_right_rounded, color: c.textHint, size: 18),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onTap: onTap,
     );

@@ -1,8 +1,7 @@
-// lib/feactures/profile/services/notification_service.dart
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/notification_model.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class NotificationsListResult {
   final List<NotificationModel> notifications;
@@ -17,7 +16,7 @@ class NotificationsListResult {
 }
 
 class NotificationService {
-  static const String _base = 'http://192.168.70.108:4000/kolekta-api/modules';
+  static final String _base = '${dotenv.env['API_BASE_URL']}/modules';
 
   static Map<String, String> _headers(String token) => {
         'Content-Type': 'application/json',

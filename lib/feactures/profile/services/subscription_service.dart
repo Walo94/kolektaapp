@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Modelo de suscripción activa (único que necesitamos ahora)
 class SubscriptionInfo {
@@ -38,7 +39,7 @@ class CheckoutResult {
 
 /// Centraliza todas las llamadas a /kolekta-api/subscription
 class SubscriptionService {
-  static const String _base = 'http://192.168.70.108:4000/kolekta-api/subscription';
+  static final String _base = '${dotenv.env['API_BASE_URL']}/subscription';
 
   static Map<String, String> _authHeaders(String token) => {
         'Content-Type': 'application/json',

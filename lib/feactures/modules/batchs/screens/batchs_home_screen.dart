@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/kolekta_colors.dart';
@@ -342,8 +343,8 @@ class _BatchCard extends StatelessWidget {
   // ── URL pública de la tanda ───────────────────────────
   // En desarrollo apunta al servidor local; en producción a kolekta.gamezdev.com.mx
   // Cambia _kBaseShareUrl según el entorno antes de publicar.
-  static const String _kBaseShareUrl =
-      'http://192.168.70.108:8080/shared/batch';
+  static final String _kBaseShareUrl =
+      '${dotenv.env['WEB_URL']}/shared/batch';
   // static const String _kBaseShareUrl =
   //     'https://kolekta.gamezdev.com.mx/shared/batch';
 

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
@@ -275,7 +276,7 @@ class Giveaway {
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 class GiveawayService {
-  static const String _base = 'http://192.168.70.108:4000/kolekta-api/modules';
+  static final String _base = '${dotenv.env['API_BASE_URL']}/modules';
 
   static Map<String, String> _headers(String token) => {
         'Content-Type': 'application/json',

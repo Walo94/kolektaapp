@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Modelo de respuesta del usuario devuelto por la API
 class AuthUser {
@@ -60,7 +61,7 @@ class LoginResult {
 
 /// Centraliza todas las llamadas HTTP a /kolekta-api/auth
 class AuthService {
-  static const String _base = 'http://192.168.70.108:4000/kolekta-api/auth';
+  static final String _base = '${dotenv.env['API_BASE_URL']}/auth';
 
   static final _headers = {'Content-Type': 'application/json'};
 
