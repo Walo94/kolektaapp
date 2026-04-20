@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kolekta/feactures/profile/services/push_notification_handler.dart';
 import 'package:kolekta/feactures/profile/providers/subscription_provider.dart';
+import 'package:kolekta/core/utils/error_parser.dart';
 import '../services/auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -360,8 +361,5 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  String _parseError(Object e) {
-    final msg = e.toString();
-    return msg.startsWith('Exception: ') ? msg.substring(11) : msg;
-  }
+  String _parseError(Object e) => AppErrorParser.parse(e);
 }

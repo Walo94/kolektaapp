@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kolekta/core/utils/error_parser.dart';
 import '../models/notification_model.dart';
 import '../services/notification_service.dart';
 
@@ -32,7 +33,7 @@ class NotificationProvider extends ChangeNotifier {
       _notifications = result.notifications;
       _unreadCount = result.unreadCount;
     } catch (e) {
-      _error = _msg(e);
+      _error = _parseError(e);
     } finally {
       _loading = false;
       notifyListeners();
@@ -59,7 +60,7 @@ class NotificationProvider extends ChangeNotifier {
       _unreadCount = _notifications.where((n) => !n.isRead).length;
       notifyListeners();
     } catch (e) {
-      _error = _msg(e);
+      _error = _parseError(e);
       notifyListeners();
     }
   }
@@ -72,7 +73,7 @@ class NotificationProvider extends ChangeNotifier {
       _unreadCount = 0;
       notifyListeners();
     } catch (e) {
-      _error = _msg(e);
+      _error = _parseError(e);
       notifyListeners();
     }
   }
@@ -86,7 +87,7 @@ class NotificationProvider extends ChangeNotifier {
       _unreadCount = _notifications.where((n) => !n.isRead).length;
       notifyListeners();
     } catch (e) {
-      _error = _msg(e);
+      _error = _parseError(e);
       notifyListeners();
     }
   }
@@ -98,7 +99,7 @@ class NotificationProvider extends ChangeNotifier {
       _unreadCount = 0;
       notifyListeners();
     } catch (e) {
-      _error = _msg(e);
+      _error = _parseError(e);
       notifyListeners();
     }
   }
@@ -111,7 +112,7 @@ class NotificationProvider extends ChangeNotifier {
     try {
       _preferences = await NotificationService.getPreferences(token: token);
     } catch (e) {
-      _error = _msg(e);
+      _error = _parseError(e);
     } finally {
       _prefsLoading = false;
       notifyListeners();
@@ -136,7 +137,7 @@ class NotificationProvider extends ChangeNotifier {
       }).toList();
       notifyListeners();
     } catch (e) {
-      _error = _msg(e);
+      _error = _parseError(e);
       notifyListeners();
     }
   }
@@ -153,8 +154,5 @@ class NotificationProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  String _msg(Object e) {
-    final s = e.toString();
-    return s.startsWith('Exception: ') ? s.substring(11) : s;
-  }
+ String _parseError(Object e) => AppErrorParser.parse(e);
 }

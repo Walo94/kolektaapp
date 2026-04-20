@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:kolekta/core/utils/error_parser.dart';
 import '../services/giveaway_service.dart';
 
 class GiveawayProvider extends ChangeNotifier {
@@ -56,7 +57,7 @@ class GiveawayProvider extends ChangeNotifier {
       _currentOffset = list.length;
       _errorMessage = null;
     } catch (e) {
-      _errorMessage = _parse(e);
+      _errorMessage = _parseError(e);
     } finally {
       _loading = false;
       notifyListeners();
@@ -122,7 +123,7 @@ class GiveawayProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = _parse(e);
+      _errorMessage = _parseError(e);
       notifyListeners();
       return false;
     } finally {
@@ -167,7 +168,7 @@ class GiveawayProvider extends ChangeNotifier {
       notifyListeners();
       return giveaway;
     } catch (e) {
-      _errorMessage = _parse(e);
+      _errorMessage = _parseError(e);
       notifyListeners();
       return null;
     } finally {
@@ -215,7 +216,7 @@ class GiveawayProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = _parse(e);
+      _errorMessage = _parseError(e);
       notifyListeners();
       return false;
     } finally {
@@ -235,7 +236,7 @@ class GiveawayProvider extends ChangeNotifier {
       await loadGiveaways(token);
       return true;
     } catch (e) {
-      _errorMessage = _parse(e);
+      _errorMessage = _parseError(e);
       notifyListeners();
       return false;
     } finally {
@@ -258,7 +259,7 @@ class GiveawayProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = _parse(e);
+      _errorMessage = _parseError(e);
       notifyListeners();
       return false;
     } finally {
@@ -295,7 +296,7 @@ class GiveawayProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = _parse(e);
+      _errorMessage = _parseError(e);
       notifyListeners();
       return false;
     } finally {
@@ -332,7 +333,7 @@ class GiveawayProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = _parse(e);
+      _errorMessage = _parseError(e);
       notifyListeners();
       return false;
     } finally {
@@ -363,7 +364,7 @@ class GiveawayProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = _parse(e);
+      _errorMessage = _parseError(e);
       notifyListeners();
       return false;
     } finally {
@@ -390,7 +391,7 @@ class GiveawayProvider extends ChangeNotifier {
       notifyListeners();
       return winners;
     } catch (e) {
-      _errorMessage = _parse(e);
+      _errorMessage = _parseError(e);
       notifyListeners();
       return null;
     } finally {
@@ -421,7 +422,7 @@ class GiveawayProvider extends ChangeNotifier {
       notifyListeners();
       return winners;
     } catch (e) {
-      _errorMessage = _parse(e);
+      _errorMessage = _parseError(e);
       notifyListeners();
       return null;
     } finally {
@@ -447,8 +448,5 @@ class GiveawayProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  String _parse(Object e) {
-    final msg = e.toString();
-    return msg.startsWith('Exception: ') ? msg.substring(11) : msg;
-  }
+  String _parseError(Object e) => AppErrorParser.parse(e);
 }

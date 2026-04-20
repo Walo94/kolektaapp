@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:kolekta/core/utils/error_parser.dart';
 import '../services/batch_service.dart';
 
 class BatchProvider extends ChangeNotifier {
@@ -76,7 +77,7 @@ class BatchProvider extends ChangeNotifier {
 
     notifyListeners();
   } catch (e) {
-    _errorMessage = _parse(e);
+    _errorMessage = _parseError(e);
     notifyListeners();
   } finally {
     _loading = false;
@@ -138,7 +139,7 @@ class BatchProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = _parse(e);
+      _errorMessage = _parseError(e);
       notifyListeners();
       return false;
     } finally {
@@ -179,7 +180,7 @@ class BatchProvider extends ChangeNotifier {
       notifyListeners();
       return batch;
     } catch (e) {
-      _errorMessage = _parse(e);
+      _errorMessage = _parseError(e);
       notifyListeners();
       return null;
     } finally {
@@ -215,7 +216,7 @@ class BatchProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = _parse(e);
+      _errorMessage = _parseError(e);
       notifyListeners();
       return false;
     } finally {
@@ -248,7 +249,7 @@ class BatchProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = _parse(e);
+      _errorMessage = _parseError(e);
       notifyListeners();
       return false;
     } finally {
@@ -268,7 +269,7 @@ class BatchProvider extends ChangeNotifier {
       await loadBatchs(token); // refrescar lista completa
       return true;
     } catch (e) {
-      _errorMessage = _parse(e);
+      _errorMessage = _parseError(e);
       notifyListeners();
       return false;
     } finally {
@@ -292,7 +293,7 @@ class BatchProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = _parse(e);
+      _errorMessage = _parseError(e);
       notifyListeners();
       return false;
     } finally {
@@ -315,8 +316,5 @@ class BatchProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  String _parse(Object e) {
-    final msg = e.toString();
-    return msg.startsWith('Exception: ') ? msg.substring(11) : msg;
-  }
+  String _parseError(Object e) => AppErrorParser.parse(e);
 }

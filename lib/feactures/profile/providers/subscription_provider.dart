@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kolekta/core/utils/error_parser.dart';
 import '../services/subscription_service.dart';
 
 enum SubscriptionLoadState { idle, loading, loaded, error }
@@ -96,8 +97,5 @@ class SubscriptionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  String _parseError(Object e) {
-    final msg = e.toString();
-    return msg.startsWith('Exception: ') ? msg.substring(11) : msg;
-  }
+  String _parseError(Object e) => AppErrorParser.parse(e);
 }

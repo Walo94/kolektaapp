@@ -1,7 +1,6 @@
-// lib/features/activity/providers/activity_provider.dart
-
 import 'package:flutter/material.dart';
 import '../models/activity_model.dart';
+import 'package:kolekta/core/utils/error_parser.dart';
 import '../services/activity_service.dart';
 
 enum ActivityPeriod { week, month, all }
@@ -163,8 +162,5 @@ class ActivityProvider extends ChangeNotifier {
 
   // ── Helper ────────────────────────────────────────────────────────────────
 
-  String _parseError(Object e) {
-    final msg = e.toString();
-    return msg.startsWith('Exception: ') ? msg.substring(11) : msg;
-  }
+  String _parseError(Object e) => AppErrorParser.parse(e);
 }
