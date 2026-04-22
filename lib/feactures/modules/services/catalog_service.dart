@@ -444,4 +444,36 @@ class CatalogService {
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     throw Exception(body['error'] ?? 'Error al generar el comprobante');
   }
+
+  // ── GET /catalog/sales/search ─────────────────────────────
+  /// Busca ventas por clientName, title o productName.
+  /// Devuelve resultados agrupados: { pending, paid, cancelled }
+  /// cada grupo con { sales: [...], total: int }
+  static Future<Map<String, dynamic>> searchSales({
+    required String token,
+    required String query,
+    int limit = 20,
+    int offset = 0,
+    String? statusGroup, // 'pending' | 'paid' | 'cancelled' — para load-more
+  }) async {
+    final params = {
+      'q': query,
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+      if (statusGroup != null) 'status': statusGroup,
+    };
+
+    final uri = Uri.parse('$_base/catalog/sales/search')
+        .replace(queryParameters: params);
+
+    final response = await http
+        .get(uri, headers: _headers(token))
+        .timeout(const Duration(seconds: 15));
+
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode == 200) {
+      return body;
+    }
+    throw Exception(body['error'] ?? 'Error al buscar ventas');
+  }
 }

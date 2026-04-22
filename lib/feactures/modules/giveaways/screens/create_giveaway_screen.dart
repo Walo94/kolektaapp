@@ -360,6 +360,18 @@ class _CreateGiveawayScreenState extends State<CreateGiveawayScreen> {
     final prizes = int.tryParse(_prizesCtrl.text) ?? 1;
     final dateStr = DateFormat('yyyy-MM-dd').format(_drawDate);
 
+    // Validación extra: límite de boletos
+    if (!_isEdit && tickets > 1000) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('El número de boletos no puede exceder 1,000'),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ));
+      return;
+    }
+
     // Construir autoDrawAt combinando fecha + hora seleccionada
     DateTime? autoDrawAt;
     if (_autoDrawEnabled) {

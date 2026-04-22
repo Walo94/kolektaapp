@@ -43,6 +43,7 @@ class CatalogProvider extends ChangeNotifier {
     if (!silent) {
       _loading = true;
       _errorMessage = null;
+      _sales = []; // ← limpiar antes de cargar, igual que batch
       notifyListeners();
     }
 
@@ -64,6 +65,7 @@ class CatalogProvider extends ChangeNotifier {
       _currentOffset = list.length;
       _errorMessage = null;
     } catch (e) {
+      _sales = []; // ← garantizar lista vacía en error
       _errorMessage = _parseError(e);
     } finally {
       _loading = false;
@@ -256,8 +258,7 @@ class CatalogProvider extends ChangeNotifier {
         amount: amount,
         date: date,
       );
-      final updatedSale =
-          Sale.fromJson(result['sale'] as Map<String, dynamic>);
+      final updatedSale = Sale.fromJson(result['sale'] as Map<String, dynamic>);
       _replaceSale(updatedSale);
       if (_selectedSale?.id == saleId) {
         _selectedSale = await CatalogService.getSale(token: token, id: saleId);
@@ -335,6 +336,186 @@ class CatalogProvider extends ChangeNotifier {
     if (idx != -1) _sales[idx] = updated;
   }
 
+  // ── Estado de búsqueda ────────────────────────────────────
+  String _searchQuery = '';
+  bool _searchLoading = false;
+
+  List<Sale> _searchPending = [];
+  List<Sale> _searchPaid = [];
+  List<Sale> _searchCancelled = [];
+
+  int _searchTotalPending = 0;
+  int _searchTotalPaid = 0;
+  int _searchTotalCancelled = 0;
+
+  bool _searchHasMorePending = false;
+  bool _searchHasMorePaid = false;
+  bool _searchHasMoreCancelled = false;
+
+  int _searchOffsetPending = 0;
+  int _searchOffsetPaid = 0;
+  int _searchOffsetCancelled = 0;
+
+  static const int _searchPageSize = 20;
+
+// ── Getters de búsqueda ───────────────────────────────────
+  String get searchQuery => _searchQuery;
+  bool get searchLoading => _searchLoading;
+
+  List<Sale> get searchPending => _searchPending;
+  List<Sale> get searchPaid => _searchPaid;
+  List<Sale> get searchCancelled => _searchCancelled;
+
+  int get searchTotalPending => _searchTotalPending;
+  int get searchTotalPaid => _searchTotalPaid;
+  int get searchTotalCancelled => _searchTotalCancelled;
+
+  bool get searchHasMorePending => _searchHasMorePending;
+  bool get searchHasMorePaid => _searchHasMorePaid;
+  bool get searchHasMoreCancelled => _searchHasMoreCancelled;
+
+  // ── Buscar (primera página, todos los grupos) ─────────────
+  Future<void> searchSales(String token, String query) async {
+    _searchQuery = query;
+
+    if (query.isEmpty) {
+      _clearSearchResults();
+      notifyListeners();
+      return;
+    }
+
+    _searchLoading = true;
+    notifyListeners();
+
+    try {
+      final result = await CatalogService.searchSales(
+        token: token,
+        query: query,
+        limit: _searchPageSize,
+        offset: 0,
+      );
+
+      _parseSearchGroup(result, 'pending');
+      _parseSearchGroup(result, 'paid');
+      _parseSearchGroup(result, 'cancelled');
+    } catch (_) {
+      _clearSearchResults();
+    } finally {
+      _searchLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void _parseSearchGroup(Map<String, dynamic> result, String key) {
+    final group = result[key] as Map<String, dynamic>?;
+    if (group == null) return;
+
+    final list = (group['sales'] as List<dynamic>)
+        .map((e) => Sale.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final total = group['total'] as int? ?? 0;
+    final hasMore = list.length >= _searchPageSize;
+
+    switch (key) {
+      case 'pending':
+        _searchPending = list;
+        _searchTotalPending = total;
+        _searchHasMorePending = hasMore;
+        _searchOffsetPending = list.length;
+        break;
+      case 'paid':
+        _searchPaid = list;
+        _searchTotalPaid = total;
+        _searchHasMorePaid = hasMore;
+        _searchOffsetPaid = list.length;
+        break;
+      case 'cancelled':
+        _searchCancelled = list;
+        _searchTotalCancelled = total;
+        _searchHasMoreCancelled = hasMore;
+        _searchOffsetCancelled = list.length;
+        break;
+    }
+  }
+
+  /// Carga más resultados para un grupo específico.
+  /// [groupIndex] : 0=pending, 1=paid, 2=cancelled
+  Future<void> searchLoadMore(String token, int groupIndex) async {
+    final statuses = ['pending', 'paid', 'cancelled'];
+    final status = statuses[groupIndex];
+
+    final offset = groupIndex == 0
+        ? _searchOffsetPending
+        : groupIndex == 1
+            ? _searchOffsetPaid
+            : _searchOffsetCancelled;
+
+    try {
+      final result = await CatalogService.searchSales(
+        token: token,
+        query: _searchQuery,
+        limit: _searchPageSize,
+        offset: offset,
+        statusGroup: status,
+      );
+
+      final group = result[status] as Map<String, dynamic>?;
+      if (group == null) return;
+
+      final list = (group['sales'] as List<dynamic>)
+          .map((e) => Sale.fromJson(e as Map<String, dynamic>))
+          .toList();
+      final total = group['total'] as int? ?? 0;
+      final hasMore = list.length >= _searchPageSize;
+
+      switch (groupIndex) {
+        case 0:
+          _searchPending.addAll(list);
+          _searchTotalPending = total;
+          _searchHasMorePending = hasMore;
+          _searchOffsetPending += list.length;
+          break;
+        case 1:
+          _searchPaid.addAll(list);
+          _searchTotalPaid = total;
+          _searchHasMorePaid = hasMore;
+          _searchOffsetPaid += list.length;
+          break;
+        case 2:
+          _searchCancelled.addAll(list);
+          _searchTotalCancelled = total;
+          _searchHasMoreCancelled = hasMore;
+          _searchOffsetCancelled += list.length;
+          break;
+      }
+
+      notifyListeners();
+    } catch (_) {
+      // silencioso
+    }
+  }
+
+  void clearSearch() {
+    _searchQuery = '';
+    _clearSearchResults();
+    notifyListeners();
+  }
+
+  void _clearSearchResults() {
+    _searchPending = [];
+    _searchPaid = [];
+    _searchCancelled = [];
+    _searchTotalPending = 0;
+    _searchTotalPaid = 0;
+    _searchTotalCancelled = 0;
+    _searchHasMorePending = false;
+    _searchHasMorePaid = false;
+    _searchHasMoreCancelled = false;
+    _searchOffsetPending = 0;
+    _searchOffsetPaid = 0;
+    _searchOffsetCancelled = 0;
+  }
+
   void clearError() {
     _errorMessage = null;
     notifyListeners();
@@ -345,5 +526,5 @@ class CatalogProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-   String _parseError(Object e) => AppErrorParser.parse(e);
+  String _parseError(Object e) => AppErrorParser.parse(e);
 }

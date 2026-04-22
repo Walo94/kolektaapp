@@ -161,14 +161,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         subtitle: null,
                         onTap: () => context.push(AppRoutes.help),
                       ),
-                      _SettingsItem(
-                        icon: Icons.chat_bubble_outline_rounded,
-                        iconBg: c.greenLight,
-                        iconColor: AppColors.green,
-                        title: 'Contactar soporte',
-                        subtitle: null,
-                        onTap: () {},
-                      ),
                     ]),
                     const SizedBox(height: 20),
 

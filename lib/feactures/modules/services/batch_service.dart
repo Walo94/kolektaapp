@@ -475,4 +475,42 @@ class BatchService {
       throw Exception(body['error'] ?? 'Error al eliminar la tanda');
     }
   }
+
+  // ── GET /batchs/search ────────────────────────────────
+  /// Busca tandas por nombre o nombre de participante.
+  /// Devuelve resultados agrupados: { active, finished, cancelled }
+  /// cada grupo con { items: [...], total: int }
+  static Future<Map<String, dynamic>> searchBatchs({
+    required String token,
+    required String query,
+    int limit = 20,
+    int offset = 0,
+    String? statusGroup, // 'active' | 'finished' | 'cancelled' — para load-more
+  }) async {
+    final params = {
+      'q': query,
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+      if (statusGroup != null) 'status': statusGroup,
+    };
+ 
+    final uri =
+        Uri.parse('$_base/batchs/search').replace(queryParameters: params);
+ 
+    final response = await http
+        .get(uri, headers: _headers(token))
+        .timeout(const Duration(seconds: 15));
+ 
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode == 200) {
+      return body;
+      // Estructura esperada:
+      // {
+      //   "active":    { "batchs": [...], "total": int },
+      //   "finished":  { "batchs": [...], "total": int },
+      //   "cancelled": { "batchs": [...], "total": int },
+      // }
+    }
+    throw Exception(body['error'] ?? 'Error al buscar tandas');
+  }
 }

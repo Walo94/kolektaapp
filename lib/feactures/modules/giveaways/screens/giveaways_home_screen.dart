@@ -9,6 +9,8 @@ import '../../../../shared/widgets/kolekta_pagination.dart';
 import '../../../admin/providers/auth_provider.dart';
 import '../../providers/giveaway_provider.dart';
 import '../../services/giveaway_service.dart';
+import '../../../../shared/widgets/kolekta_search_bar.dart';
+import '../../../../shared/widgets/kolekta_search_results.dart';
 import 'create_giveaway_screen.dart';
 import 'giveaway_detail_screen.dart';
 import '../../../profile/providers/subscription_provider.dart';
@@ -23,6 +25,8 @@ class GiveawaysHomeScreen extends StatefulWidget {
 class _GiveawaysHomeScreenState extends State<GiveawaysHomeScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _isActionLoading = false;
+  bool _searchOpen = false;
 
   static const _tabs = [
     (label: 'Abiertas', status: GiveawayStatus.open),
@@ -56,8 +60,9 @@ class _GiveawaysHomeScreenState extends State<GiveawaysHomeScreen>
     final token = context.read<AuthProvider>().token;
     if (token == null) return;
     final prov = context.read<GiveawayProvider>();
-    if (prov.statusFilter != GiveawayStatus.open) {
-      await prov.setStatusFilter(token, GiveawayStatus.open);
+    final currentStatus = _tabs[_tabController.index].status;
+    if (prov.statusFilter != currentStatus) {
+      await prov.setStatusFilter(token, currentStatus);
     } else {
       await prov.loadGiveaways(token);
     }
@@ -66,10 +71,8 @@ class _GiveawaysHomeScreenState extends State<GiveawaysHomeScreen>
   void _goToCreate() {
     final sub = context.read<SubscriptionProvider>();
 
-    // validación basada en Stripe
     final bool hasActiveSubscription = sub.hasActiveSubscription;
-    final int currentGiveawaysCount =
-        _getOpenGiveawaysCount(); // rifas abiertas actuales
+    final int currentGiveawaysCount = _getOpenGiveawaysCount();
 
     if (!hasActiveSubscription && currentGiveawaysCount >= 1) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -83,7 +86,6 @@ class _GiveawaysHomeScreenState extends State<GiveawaysHomeScreen>
       return;
     }
 
-    // Si tiene Premium o aún no llegó al límite (1 rifa)
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const CreateGiveawayScreen()),
     );
@@ -98,6 +100,18 @@ class _GiveawaysHomeScreenState extends State<GiveawaysHomeScreen>
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => GiveawayDetailScreen(giveawayId: g.id)),
     );
+  }
+
+  void _openSearch() => setState(() => _searchOpen = true);
+
+  void _closeSearch() {
+    setState(() => _searchOpen = false);
+    context.read<GiveawayProvider>().clearSearch();
+  }
+
+  void _onSearch(String query) {
+    final token = context.read<AuthProvider>().token ?? '';
+    context.read<GiveawayProvider>().searchGiveaways(token, query);
   }
 
   void _showContextMenu(BuildContext ctx, Giveaway g, String token) {
@@ -156,7 +170,9 @@ class _GiveawaysHomeScreenState extends State<GiveawaysHomeScreen>
                       confirmColor: AppColors.orange,
                     );
                     if (confirmed != true || !mounted) return;
+                    setState(() => _isActionLoading = true);
                     final ok = await prov.cancelGiveaway(token, g.id);
+                    if (mounted) setState(() => _isActionLoading = false);
                     _showSnack(
                         ok ? 'Rifa cancelada' : prov.errorMessage ?? 'Error',
                         ok);
@@ -180,7 +196,9 @@ class _GiveawaysHomeScreenState extends State<GiveawaysHomeScreen>
                     confirmColor: AppColors.error,
                   );
                   if (confirmed != true || !mounted) return;
+                  setState(() => _isActionLoading = true);
                   final ok = await prov.deleteGiveaway(token, g.id);
+                  if (mounted) setState(() => _isActionLoading = false);
                   _showSnack(
                       ok ? 'Rifa eliminada' : prov.errorMessage ?? 'Error', ok);
                 },
@@ -241,48 +259,72 @@ class _GiveawaysHomeScreenState extends State<GiveawaysHomeScreen>
     final c = context.kolekta;
     final safeArea = MediaQuery.of(context).padding;
 
-    return Consumer2<GiveawayProvider, AuthProvider>(
-      builder: (context, prov, auth, _) {
-        final token = auth.token ?? '';
+    return Scaffold(
+      backgroundColor: c.background,
+      body: KolektaSearchBar(
+        isOpen: _searchOpen,
+        hintText: 'Buscar rifa o participante…',
+        onSearch: _onSearch,
+        onClose: _closeSearch,
+        child: Column(
+          children: [
+            SizedBox(height: safeArea.top + 16),
 
-        return Scaffold(
-          backgroundColor: c.background,
-          body: Column(
-            children: [
-              SizedBox(height: safeArea.top + 16),
-
-              // ── Header ──────────────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Rifas',
-                            style: AppTextStyles.displayMedium
-                                .copyWith(color: c.textPrimary)),
-                        Text('Gestiona sorteos y ganadores',
-                            style: AppTextStyles.bodySmall
-                                .copyWith(color: c.textSecondary)),
-                      ],
-                    ),
-                    FloatingActionButton(
-                      heroTag: 'giveaway_fab',
-                      onPressed: _goToCreate,
-                      backgroundColor: AppColors.pink,
-                      mini: true,
-                      elevation: 4,
-                      child: const Icon(Icons.add_rounded, color: Colors.white),
-                    ),
-                  ],
-                ),
+            // ── Header ──────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Rifas',
+                          style: AppTextStyles.displayMedium
+                              .copyWith(color: c.textPrimary)),
+                      Text('Gestiona sorteos y ganadores',
+                          style: AppTextStyles.bodySmall
+                              .copyWith(color: c.textSecondary)),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      // ── Botón buscar ──────────────────────
+                      GestureDetector(
+                        onTap: _openSearch,
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            color: c.surface,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: c.border),
+                          ),
+                          child: Icon(Icons.search_rounded,
+                              size: 18, color: c.textSecondary),
+                        ),
+                      ),
+                      // ── Botón crear ───────────────────────
+                      FloatingActionButton(
+                        heroTag: 'giveaway_fab',
+                        onPressed: _goToCreate,
+                        backgroundColor: AppColors.pink,
+                        mini: true,
+                        elevation: 4,
+                        child:
+                            const Icon(Icons.add_rounded, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ],
               ),
+            ),
 
-              const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-              // ── Tarjeta resumen ──────────────────────────────────────────
+            // ── Tarjeta resumen (solo cuando NO está en búsqueda) ──────
+            if (!_searchOpen)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Container(
@@ -302,69 +344,72 @@ class _GiveawaysHomeScreenState extends State<GiveawaysHomeScreen>
                       ),
                     ],
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Potencial total',
-                                style: AppTextStyles.labelSmall
-                                    .copyWith(color: Colors.white70)),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                _formatMoney(_potentialTotal(prov)),
-                                style: AppTextStyles.displayMedium.copyWith(
-                                    color: Colors.white, fontSize: 28),
+                  child: Consumer<GiveawayProvider>(
+                    builder: (context, prov, _) => Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Potencial total',
+                                  style: AppTextStyles.labelSmall
+                                      .copyWith(color: Colors.white70)),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  _formatMoney(_potentialTotal(prov)),
+                                  style: AppTextStyles.displayMedium.copyWith(
+                                      color: Colors.white, fontSize: 28),
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${prov.giveaways.where((g) => g.status == GiveawayStatus.open).length} rifa(s) abierta(s)',
-                              style: AppTextStyles.labelSmall
-                                  .copyWith(color: Colors.white70),
-                            ),
-                          ],
+                              const SizedBox(height: 4),
+                              Text(
+                                '${prov.giveaways.where((g) => g.status == GiveawayStatus.open).length} rifa(s) abierta(s)',
+                                style: AppTextStyles.labelSmall
+                                    .copyWith(color: Colors.white70),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        width: 70,
-                        height: 70,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(16),
+                        const SizedBox(width: 12),
+                        Container(
+                          width: 70,
+                          height: 70,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '${_totalSoldTickets(prov)}',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w800),
+                              ),
+                              const Text(
+                                'Vendidos',
+                                style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '${_totalSoldTickets(prov)}',
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w800),
-                            ),
-                            const Text(
-                              'Vendidos',
-                              style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
 
-              const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-              // ── Tabs ────────────────────────────────────────────────────
+            // ── Tabs (se ocultan mientras busca) ───────────────────────
+            if (!_searchOpen)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Container(
@@ -393,57 +438,100 @@ class _GiveawaysHomeScreenState extends State<GiveawaysHomeScreen>
                 ),
               ),
 
-              const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-              // ── Lista ────────────────────────────────────────────────────
-              Expanded(
-                child: prov.loading && prov.giveaways.isEmpty
-                    ? const Center(
-                        child: CircularProgressIndicator(color: AppColors.pink))
-                    : prov.errorMessage != null && prov.giveaways.isEmpty
-                        ? _ErrorState(
-                            message: prov.errorMessage!,
-                            onRetry: _load,
-                          )
-                        : prov.isEmpty
-                            ? _EmptyState(onRefresh: _load)
-                            : RefreshIndicator(
-                                color: AppColors.pink,
-                                onRefresh: _load,
-                                child: ListView.builder(
-                                  physics:
-                                      const AlwaysScrollableScrollPhysics(),
-                                  padding:
-                                      const EdgeInsets.fromLTRB(20, 4, 20, 32),
-                                  itemCount: prov.giveaways.length + 1,
-                                  itemBuilder: (ctx, i) {
-                                    if (i < prov.giveaways.length) {
-                                      final g = prov.giveaways[i];
-                                      return Padding(
-                                        padding:
-                                            const EdgeInsets.only(bottom: 14),
-                                        child: _GiveawayCard(
-                                          giveaway: g,
-                                          onTap: () => _goToDetail(g),
-                                          onLongPress: () => _showContextMenu(
-                                              context, g, token),
-                                        ),
-                                      );
-                                    }
-                                    return KolektaPagination(
-                                      loaded: prov.giveaways.length,
-                                      total: prov.total,
-                                      hasMore: false,
-                                      onLoadMore: () {},
-                                    );
-                                  },
-                                ),
+            // ── Contenido: búsqueda OR lista normal ────────────────────
+            if (_searchOpen) _buildSearchContent() else _buildNormalContent(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Vista de resultados de búsqueda ─────────────────────────────
+  Widget _buildSearchContent() {
+    final token = context.read<AuthProvider>().token ?? '';
+    final prov = context.watch<GiveawayProvider>();
+
+    return KolektaSearchResults<Giveaway>(
+      query: prov.searchQuery,
+      isLoading: prov.searchLoading,
+      groups: [
+        SearchResultGroup<Giveaway>(
+          label: 'Abiertas',
+          items: prov.searchOpen,
+          total: prov.searchTotalOpen,
+          hasMore: prov.searchHasMoreOpen,
+        ),
+        SearchResultGroup<Giveaway>(
+          label: 'Finalizadas',
+          items: prov.searchFinished,
+          total: prov.searchTotalFinished,
+          hasMore: prov.searchHasMoreFinished,
+        ),
+        SearchResultGroup<Giveaway>(
+          label: 'Canceladas',
+          items: prov.searchCancelled,
+          total: prov.searchTotalCancelled,
+          hasMore: prov.searchHasMoreCancelled,
+        ),
+      ],
+      itemBuilder: (giveaway) => _GiveawayCard(
+        giveaway: giveaway,
+        onTap: () => _goToDetail(giveaway),
+        onLongPress: () => _showContextMenu(context, giveaway, token),
+      ),
+      onLoadMore: (groupIndex) => prov.searchLoadMore(token, groupIndex),
+      emptyMessage: 'Sin resultados para',
+    );
+  }
+
+  // ── Vista normal con tabs ──────────────────────────────────────
+  Widget _buildNormalContent() {
+    final prov = context.watch<GiveawayProvider>();
+    final token =
+        context.read<AuthProvider>().token ?? ''; // ← Agrega esta línea
+
+    return Expanded(
+      child: prov.loading && prov.giveaways.isEmpty
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.pink))
+          : prov.errorMessage != null && prov.giveaways.isEmpty
+              ? _ErrorState(
+                  message: prov.errorMessage!,
+                  onRetry: _load,
+                )
+              : prov.isEmpty
+                  ? _EmptyState(onRefresh: _load)
+                  : RefreshIndicator(
+                      color: AppColors.pink,
+                      onRefresh: _load,
+                      child: ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+                        itemCount: prov.giveaways.length + 1,
+                        itemBuilder: (ctx, i) {
+                          if (i < prov.giveaways.length) {
+                            final g = prov.giveaways[i];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 14),
+                              child: _GiveawayCard(
+                                giveaway: g,
+                                onTap: () => _goToDetail(g),
+                                onLongPress: () => _showContextMenu(
+                                    context, g, token), // ← Usa token
                               ),
-              ),
-            ],
-          ),
-        );
-      },
+                            );
+                          }
+                          return KolektaPagination(
+                            loaded: prov.giveaways.length,
+                            total: prov.total,
+                            hasMore: false,
+                            onLoadMore: () {},
+                          );
+                        },
+                      ),
+                    ),
     );
   }
 
@@ -725,7 +813,7 @@ class _EmptyState extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         children: [
           SizedBox(
-            height: MediaQuery.of(context).size.height * 0.35, // Centrado vertical
+            height: MediaQuery.of(context).size.height * 0.35,
             child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -746,8 +834,7 @@ class _EmptyState extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     'Toca + para crear tu primera rifa',
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: c.textHint),
+                    style: AppTextStyles.bodySmall.copyWith(color: c.textHint),
                     textAlign: TextAlign.center,
                   ),
                 ],

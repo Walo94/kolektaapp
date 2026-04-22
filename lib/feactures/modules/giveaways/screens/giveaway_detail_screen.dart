@@ -183,6 +183,7 @@ class _GiveawayDetailScreenState extends State<GiveawayDetailScreen>
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
     bool isPaid = false;
+    bool isAssigning = false;
 
     showModalBottomSheet(
       context: context,
@@ -333,34 +334,48 @@ class _GiveawayDetailScreenState extends State<GiveawayDetailScreen>
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                     ),
-                    onPressed: () async {
-                      if (selectedTicket == null) {
-                        _showSnack('Selecciona un número', false);
-                        return;
-                      }
-                      if (nameCtrl.text.trim().isEmpty) {
-                        _showSnack('Ingresa el nombre del cliente', false);
-                        return;
-                      }
-                      Navigator.pop(ctx);
-                      final ok = await prov.assignTicket(
-                        token: token,
-                        giveawayId: g.id,
-                        ticketNumber: selectedTicket!,
-                        clientName: nameCtrl.text.trim(),
-                        clientPhone: phoneCtrl.text.trim().isEmpty
-                            ? null
-                            : phoneCtrl.text.trim(),
-                        paid: isPaid,
-                      );
-                      _showSnack(
-                        ok
-                            ? 'Boleto #$selectedTicket asignado'
-                            : prov.errorMessage ?? 'Error',
-                        ok,
-                      );
-                    },
-                    child: const Text('Asignar boleto'),
+                    onPressed: isAssigning
+                        ? null
+                        : () async {
+                            if (selectedTicket == null) {
+                              _showSnack('Selecciona un número', false);
+                              return;
+                            }
+                            if (nameCtrl.text.trim().isEmpty) {
+                              _showSnack('Ingresa el nombre del cliente', false);
+                              return;
+                            }
+                            setSheetState(() => isAssigning = true);
+                            final ticketNum = selectedTicket!;
+                            final ok = await prov.assignTicket(
+                              token: token,
+                              giveawayId: g.id,
+                              ticketNumber: ticketNum,
+                              clientName: nameCtrl.text.trim(),
+                              clientPhone: phoneCtrl.text.trim().isEmpty
+                                  ? null
+                                  : phoneCtrl.text.trim(),
+                              paid: isPaid,
+                            );
+                            if (!ctx.mounted) return;
+                            Navigator.pop(ctx);
+                            _showSnack(
+                              ok
+                                  ? 'Boleto #$ticketNum asignado'
+                                  : prov.errorMessage ?? 'Error',
+                              ok,
+                            );
+                          },
+                    child: isAssigning
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Asignar boleto'),
                   ),
                 ),
               ],

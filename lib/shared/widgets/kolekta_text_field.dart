@@ -58,6 +58,8 @@ class _KolektaTextFieldState extends State<KolektaTextField> {
           widget.suffixIcon; // <--- Usar el que pasaste desde afuera
     }
 
+    final textColor = Theme.of(context).colorScheme.onSurface;
+
     return TextFormField(
       controller: widget.controller,
       keyboardType: widget.keyboardType,
@@ -65,7 +67,7 @@ class _KolektaTextFieldState extends State<KolektaTextField> {
       enabled: widget.enabled,
       obscureText: widget.isPassword && _obscure,
       textInputAction: widget.textInputAction,
-      style: AppTextStyles.bodyMedium,
+      style: AppTextStyles.bodyMedium.copyWith(color: textColor),
       validator: widget.validator,
       inputFormatters: widget.inputFormatters,
       onChanged: widget.onChanged,

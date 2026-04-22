@@ -639,4 +639,36 @@ class GiveawayService {
     throw Exception(
         body['error'] ?? 'Error al generar el comprobante del boleto');
   }
+
+  // ── GET /giveaways/search ─────────────────────────────
+  /// Busca rifas por título o descripción.
+  /// Devuelve resultados agrupados: { open, finished, cancelled }
+  /// cada grupo con { giveaways: [...], total: int }
+  static Future<Map<String, dynamic>> searchGiveaways({
+    required String token,
+    required String query,
+    int limit = 20,
+    int offset = 0,
+    String? statusGroup, // 'open' | 'finished' | 'cancelled' — para load-more
+  }) async {
+    final params = {
+      'q': query,
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+      if (statusGroup != null) 'status': statusGroup,
+    };
+
+    final uri =
+        Uri.parse('$_base/giveaways/search').replace(queryParameters: params);
+
+    final response = await http
+        .get(uri, headers: _headers(token))
+        .timeout(const Duration(seconds: 15));
+
+    final body = _decodeBody(response);
+    if (response.statusCode == 200) {
+      return body;
+    }
+    throw Exception(body['error'] ?? 'Error al buscar rifas');
+  }
 }

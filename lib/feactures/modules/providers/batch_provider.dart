@@ -40,50 +40,51 @@ class BatchProvider extends ChangeNotifier {
 
   // ── Cargar lista ─────────────────────────────────────────
   Future<void> loadBatchs(String token, {bool silent = false}) async {
-  _currentOffset = 0;
-  _hasMore = true;
+    _currentOffset = 0;
+    _hasMore = true;
 
-  if (!silent) {
-    _loading = true;
-    _errorMessage = null;
-    notifyListeners();
-  }
-
-  try {
-    final result = await BatchService.listBatchs(
-      token: token,
-      status: _statusFilter,
-      limit: _pageSize,
-      offset: 0,
-    );
-
-    final list = (result['batchs'] as List<dynamic>)
-        .map((e) => Batch.fromJson(e as Map<String, dynamic>))
-        .toList();
-
-    _batchs = list;
-    _total = result['total'] as int? ?? list.length;   // ← más seguro
-    _hasMore = list.length >= _pageSize;
-    _currentOffset = list.length;
-
-    // Solo actualizar conteo activo cuando sea necesario
-    if (_statusFilter == null || _statusFilter == BatchStatus.active) {
-      try {
-        _activeBatchsCount = await BatchService.getActiveBatchsCount(token: token);
-      } catch (_) {
-        // no romper el flujo
-      }
+    if (!silent) {
+      _loading = true;
+      _errorMessage = null;
+      notifyListeners();
     }
 
-    notifyListeners();
-  } catch (e) {
-    _errorMessage = _parseError(e);
-    notifyListeners();
-  } finally {
-    _loading = false;
-    notifyListeners();
+    try {
+      final result = await BatchService.listBatchs(
+        token: token,
+        status: _statusFilter,
+        limit: _pageSize,
+        offset: 0,
+      );
+
+      final list = (result['batchs'] as List<dynamic>)
+          .map((e) => Batch.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      _batchs = list;
+      _total = result['total'] as int? ?? list.length; // ← más seguro
+      _hasMore = list.length >= _pageSize;
+      _currentOffset = list.length;
+
+      // Solo actualizar conteo activo cuando sea necesario
+      if (_statusFilter == null || _statusFilter == BatchStatus.active) {
+        try {
+          _activeBatchsCount =
+              await BatchService.getActiveBatchsCount(token: token);
+        } catch (_) {
+          // no romper el flujo
+        }
+      }
+
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = _parseError(e);
+      notifyListeners();
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
   }
-}
 
 // ── Cargar más ───────────────────────────────────────────────────────
   Future<void> loadMore(String token) async {
@@ -119,6 +120,7 @@ class BatchProvider extends ChangeNotifier {
     notifyListeners();
     await loadBatchs(token);
   }
+
   // ── Cargar conteo para home ──────────────────────────────
   Future<void> loadActiveBatchsCount(String token) async {
     try {
@@ -298,6 +300,188 @@ class BatchProvider extends ChangeNotifier {
       return false;
     } finally {
       _setLoading(false);
+    }
+  }
+
+  // ── Estado de búsqueda ───────────────────────────────────
+
+  String _searchQuery = '';
+  bool _searchLoading = false;
+
+// Resultados por grupo (active / finished / cancelled)
+  List<Batch> _searchActive = [];
+  List<Batch> _searchFinished = [];
+  List<Batch> _searchCancelled = [];
+
+  int _searchTotalActive = 0;
+  int _searchTotalFinished = 0;
+  int _searchTotalCancelled = 0;
+
+  bool _searchHasMoreActive = false;
+  bool _searchHasMoreFinished = false;
+  bool _searchHasMoreCancelled = false;
+
+  int _searchOffsetActive = 0;
+  int _searchOffsetFinished = 0;
+  int _searchOffsetCancelled = 0;
+
+  static const int _searchPageSize = 20;
+
+  // ── Getters de búsqueda ──────────────────────────────────
+  String get searchQuery => _searchQuery;
+  bool get searchLoading => _searchLoading;
+
+  List<Batch> get searchActive => _searchActive;
+  List<Batch> get searchFinished => _searchFinished;
+  List<Batch> get searchCancelled => _searchCancelled;
+
+  int get searchTotalActive => _searchTotalActive;
+  int get searchTotalFinished => _searchTotalFinished;
+  int get searchTotalCancelled => _searchTotalCancelled;
+
+  bool get searchHasMoreActive => _searchHasMoreActive;
+  bool get searchHasMoreFinished => _searchHasMoreFinished;
+  bool get searchHasMoreCancelled => _searchHasMoreCancelled;
+
+// ── Buscar (primera página, todos los grupos) ─────────────
+  Future<void> searchBatchs(String token, String query) async {
+    _searchQuery = query;
+
+    if (query.isEmpty) {
+      _clearSearchResults();
+      notifyListeners();
+      return;
+    }
+
+    _searchLoading = true;
+    notifyListeners();
+
+    try {
+      final result = await BatchService.searchBatchs(
+        token: token,
+        query: query,
+        limit: _searchPageSize,
+        offset: 0,
+      );
+
+      _parseSearchGroup(result, 'active');
+      _parseSearchGroup(result, 'finished');
+      _parseSearchGroup(result, 'cancelled');
+    } catch (_) {
+      _clearSearchResults();
+    } finally {
+      _searchLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Carga más resultados para un grupo específico.
+  /// [groupIndex] : 0=active, 1=finished, 2=cancelled
+  Future<void> searchLoadMore(String token, int groupIndex) async {
+    final statuses = ['active', 'finished', 'cancelled'];
+    final status = statuses[groupIndex];
+
+    final offset = groupIndex == 0
+        ? _searchOffsetActive
+        : groupIndex == 1
+            ? _searchOffsetFinished
+            : _searchOffsetCancelled;
+
+    try {
+      final result = await BatchService.searchBatchs(
+        token: token,
+        query: _searchQuery,
+        limit: _searchPageSize,
+        offset: offset,
+        statusGroup: status,
+      );
+
+      final group = result[status] as Map<String, dynamic>?;
+      if (group == null) return;
+
+      final list = (group['batchs'] as List<dynamic>)
+          .map((e) => Batch.fromJson(e as Map<String, dynamic>))
+          .toList();
+      final total = group['total'] as int? ?? 0;
+      final hasMore = list.length >= _searchPageSize;
+
+      switch (groupIndex) {
+        case 0:
+          _searchActive.addAll(list);
+          _searchTotalActive = total;
+          _searchHasMoreActive = hasMore;
+          _searchOffsetActive += list.length;
+          break;
+        case 1:
+          _searchFinished.addAll(list);
+          _searchTotalFinished = total;
+          _searchHasMoreFinished = hasMore;
+          _searchOffsetFinished += list.length;
+          break;
+        case 2:
+          _searchCancelled.addAll(list);
+          _searchTotalCancelled = total;
+          _searchHasMoreCancelled = hasMore;
+          _searchOffsetCancelled += list.length;
+          break;
+      }
+
+      notifyListeners();
+    } catch (_) {
+      // silencioso
+    }
+  }
+
+  void _clearSearchResults() {
+    _searchActive = [];
+    _searchFinished = [];
+    _searchCancelled = [];
+    _searchTotalActive = 0;
+    _searchTotalFinished = 0;
+    _searchTotalCancelled = 0;
+    _searchHasMoreActive = false;
+    _searchHasMoreFinished = false;
+    _searchHasMoreCancelled = false;
+    _searchOffsetActive = 0;
+    _searchOffsetFinished = 0;
+    _searchOffsetCancelled = 0;
+  }
+
+  void clearSearch() {
+    _searchQuery = '';
+    _clearSearchResults();
+    notifyListeners();
+  }
+
+  void _parseSearchGroup(Map<String, dynamic> result, String key) {
+    final group = result[key] as Map<String, dynamic>?;
+    if (group == null) return;
+
+    final list = (group['batchs'] as List<dynamic>)
+        .map((e) => Batch.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final total = group['total'] as int? ?? 0;
+    final hasMore = list.length >= _searchPageSize;
+
+    switch (key) {
+      case 'active':
+        _searchActive = list;
+        _searchTotalActive = total;
+        _searchHasMoreActive = hasMore;
+        _searchOffsetActive = list.length;
+        break;
+      case 'finished':
+        _searchFinished = list;
+        _searchTotalFinished = total;
+        _searchHasMoreFinished = hasMore;
+        _searchOffsetFinished = list.length;
+        break;
+      case 'cancelled':
+        _searchCancelled = list;
+        _searchTotalCancelled = total;
+        _searchHasMoreCancelled = hasMore;
+        _searchOffsetCancelled = list.length;
+        break;
     }
   }
 

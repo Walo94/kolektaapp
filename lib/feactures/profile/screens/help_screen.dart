@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/kolekta_colors.dart';
@@ -113,6 +114,7 @@ class _HelpScreenState extends State<HelpScreen> {
                 icon: Icons.groups_rounded,
                 iconBg: c.purpleLight,
                 iconColor: AppColors.purple,
+                imagePath: 'assets/images/batch.png',
                 questions: _tandasFaqs,
               ),
 
@@ -123,6 +125,7 @@ class _HelpScreenState extends State<HelpScreen> {
                 icon: Icons.shopping_bag_outlined,
                 iconBg: c.greenLight,
                 iconColor: AppColors.green,
+                imagePath: 'assets/images/catalog.png',
                 questions: _catalogoFaqs,
               ),
 
@@ -133,6 +136,7 @@ class _HelpScreenState extends State<HelpScreen> {
                 icon: Icons.card_giftcard_rounded,
                 iconBg: c.pinkLight,
                 iconColor: AppColors.pink,
+                imagePath: 'assets/images/giveaway.png',
                 questions: _rifasFaqs,
               ),
 
@@ -149,26 +153,22 @@ class _HelpScreenState extends State<HelpScreen> {
 
               _SettingsGroup(items: [
                 _ContactItem(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  iconBg: c.greenLight,
-                  iconColor: AppColors.green,
-                  title: 'Chatear por WhatsApp',
-                  subtitle: 'Respuesta rápida (9am - 7pm)',
-                  onTap: () {
-                    // TODO: Abrir WhatsApp con número de soporte
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Abriendo WhatsApp...')),
-                    );
-                  },
-                ),
-                _ContactItem(
                   icon: Icons.email_outlined,
                   iconBg: c.orangeLight,
                   iconColor: AppColors.orange,
                   title: 'Enviar correo',
-                  subtitle: 'soporte@kolekta.gamezdev.com.mx',
+                  subtitle: 'contacto@gamezdev.com.mx',
                   onTap: () {
-                    // TODO: Abrir cliente de correo
+                    Clipboard.setData(
+                        const ClipboardData(text: 'contacto@gamezdev.com.mx'));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Correo copiado al portapapeles'),
+                        behavior: SnackBarBehavior.floating,
+                        duration: Duration(seconds: 2),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
                   },
                 ),
                 _ContactItem(
@@ -177,7 +177,8 @@ class _HelpScreenState extends State<HelpScreen> {
                   iconColor: AppColors.purple,
                   title: 'Visitar centro de ayuda web',
                   subtitle: 'kolekta.gamezdev.com.mx',
-                  onTap: () => _launchURL('https://kolekta.gamezdev.com.mx/#faq'),
+                  onTap: () =>
+                      _launchURL('https://kolekta.gamezdev.com.mx/#faq'),
                 ),
               ]),
 
@@ -211,6 +212,7 @@ class _FaqCategory extends StatelessWidget {
     required this.iconBg,
     required this.iconColor,
     required this.questions,
+    this.imagePath,
   });
 
   final String title;
@@ -218,6 +220,7 @@ class _FaqCategory extends StatelessWidget {
   final Color iconBg;
   final Color iconColor;
   final List<Map<String, String>> questions;
+  final String? imagePath;
 
   @override
   Widget build(BuildContext context) {
@@ -241,7 +244,12 @@ class _FaqCategory extends StatelessWidget {
               color: iconBg,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: iconColor, size: 22),
+            child: imagePath != null
+                ? Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Image.asset(imagePath!, fit: BoxFit.contain),
+                  )
+                : Icon(icon, color: iconColor, size: 22),
           ),
           title: Text(
             title,
@@ -400,12 +408,12 @@ final List<Map<String, String>> _generalFaqs = [
   {
     'q': '¿Qué es Kolekta?',
     'a':
-        'Kolekta es una plataforma que te permite organizar tandas, vender por catálogo y crear rifas de forma sencilla y segura. Ideal para emprendedores, grupos de amigos, familias y pequeños negocios.'
+        'Kolekta es una plataforma que te permite organizar tandas, vender y administrar por catálogo y crear rifas de forma sencilla y segura. Ideal para emprendedores, grupos de amigos, familias y pequeños negocios.'
   },
   {
     'q': '¿Es gratis usar Kolekta?',
     'a':
-        'Sí, la versión básica es gratuita. Contamos con un plan Premium que desbloquea funciones avanzadas como más participantes, reportes detallados y eliminación de anuncios.'
+        'Sí, la versión básica es gratuita. Contamos con un plan Premium que desbloquea el uso ilimitado para la creación de tandas, rifas y ventas.'
   },
   {
     'q': '¿Cómo recupero mi contraseña?',
@@ -418,17 +426,17 @@ final List<Map<String, String>> _tandasFaqs = [
   {
     'q': '¿Cómo funciona una tanda en Kolekta?',
     'a':
-        'Una tanda es un ahorro grupal donde cada participante aporta una cantidad fija cada periodo (semana o mes). Al final de cada ronda, uno de los participantes recibe el total acumulado.'
+        'Una tanda es un ahorro grupal donde cada participante aporta una cantidad fija cada periodo (semana, quinca, mes). Al final de cada ronda, uno de los participantes recibe el total acumulado.'
   },
   {
-    'q': '¿Puedo pausar o cancelar una tanda?',
+    'q': '¿Puedo eliminar o cancelar una tanda?',
     'a':
-        'Sí, el administrador puede pausar la tanda o cancelarla antes de que inicie. Una vez iniciada, las cancelaciones están sujetas a las reglas del grupo.'
+        'Sí, el administrador puede eliminar la tanda o cancelarla antes de que inicie. Una vez iniciada, las cancelaciones están sujetas a las reglas del grupo.'
   },
   {
-    'q': '¿Qué pasa si alguien no paga su aportación?',
+    'q': '¿Como se manejan los pagos en la aplicación?',
     'a':
-        'El administrador recibe notificaciones y puede marcar pagos pendientes. Recomendamos establecer reglas claras al crear la tanda.'
+        'Por ahora kolekta no administrar transacciones o pagos de dinero real, el administrador se debe de encargar de marcar como entregado cada número'
   },
 ];
 
@@ -436,12 +444,11 @@ final List<Map<String, String>> _catalogoFaqs = [
   {
     'q': '¿Cómo vendo por catálogo?',
     'a':
-        'Sube tus productos con fotos, precios y descripción. Comparte el enlace de tu catálogo con tus clientes por WhatsApp, redes sociales o directamente desde la app.'
+        'Sube tus productos con fotos, precios y descripción. Crea una venta seleccionando un cliente, puedes agregar tus productos o solo agregar la descripción y precio sin tenerlo registrado.'
   },
   {
     'q': '¿Los clientes pueden pagar en línea?',
-    'a':
-        'En el plan Premium puedes activar pagos en línea mediante pasarelas integradas. En la versión gratuita los pagos se coordinan directamente con el vendedor.'
+    'a': 'Por ahora es una función que esta en desarrollo.'
   },
 ];
 
@@ -449,16 +456,16 @@ final List<Map<String, String>> _rifasFaqs = [
   {
     'q': '¿Cómo creo una rifa?',
     'a':
-        'Ve a la sección de Rifas, toca "Nueva rifa", agrega el premio, precio del boleto, cantidad de boletos y fecha del sorteo. ¡Listo!'
+        'Ve a la sección de Rifas, toca "Nueva rifa", agrega el premio, precio del boleto, cantidad de boletos y fecha del sorteo. ¡Listo!.'
   },
   {
     'q': '¿Cómo se realiza el sorteo?',
     'a':
-        'El sistema selecciona automáticamente al ganador de forma aleatoria y transparente cuando se completa la rifa o se activa el sorteo manual.'
+        'Al crear una rifa puedes configurar que el sorteo sea automático, también puedes realizar el sorteo manual ingresando los números ganadores, esto por si lo manejas con la lotería nacional.'
   },
   {
     'q': '¿Puedo vender boletos físicos y digitales?',
     'a':
-        'Sí. Puedes vender boletos digitales dentro de la app y también registrar boletos vendidos físicamente.'
+        'Puedes vender solo boletos digitales, selecciona un número y asigan el cliente, puedes marcarlo como pagado o apartado, también puedes compartir el link de la rifa para que tus clientes puedan apartar sus boletos.'
   },
 ];

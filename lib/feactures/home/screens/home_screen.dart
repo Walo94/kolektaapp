@@ -143,6 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: context.kolekta.surface,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -204,13 +205,6 @@ class _QuickActions extends StatelessWidget {
           label: 'Crear',
           color: c.primarySurface,
           onTap: onCreatePressed,
-        ),
-        // Enviar
-        _QuickActionItem(
-          iconPath: 'assets/images/send.png',
-          label: 'Enviar',
-          color: c.greenLight,
-          onTap: () {}, // TODO: implementar enviar
         ),
         // Tema
         _QuickActionItem(
@@ -313,8 +307,6 @@ class _QuickActionItem extends StatelessWidget {
     );
   }
 }
-
-// ── Tool Card ───────────────────────────────────────────────────────────────
 
 // ── Tool Card ───────────────────────────────────────────────────────────────
 
@@ -495,10 +487,16 @@ class _CreateSheet extends StatelessWidget {
     ];
 
     return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
           Center(
             child: Container(
               width: 36,
@@ -577,6 +575,7 @@ class _CreateSheet extends StatelessWidget {
           const SizedBox(height: 8),
         ],
       ),
-    );
+    ),
+  );
   }
 }

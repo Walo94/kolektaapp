@@ -438,6 +438,187 @@ class GiveawayProvider extends ChangeNotifier {
     if (idx != -1) _giveaways[idx] = updated;
   }
 
+  // ── Estado de búsqueda ────────────────────────────────────
+
+  String _searchQuery = '';
+  bool _searchLoading = false;
+
+  List<Giveaway> _searchOpen = [];
+  List<Giveaway> _searchFinished = [];
+  List<Giveaway> _searchCancelled = [];
+
+  int _searchTotalOpen = 0;
+  int _searchTotalFinished = 0;
+  int _searchTotalCancelled = 0;
+
+  bool _searchHasMoreOpen = false;
+  bool _searchHasMoreFinished = false;
+  bool _searchHasMoreCancelled = false;
+
+  int _searchOffsetOpen = 0;
+  int _searchOffsetFinished = 0;
+  int _searchOffsetCancelled = 0;
+
+  static const int _searchPageSize = 20;
+
+  // ── Getters de búsqueda ───────────────────────────────────
+  String get searchQuery => _searchQuery;
+  bool get searchLoading => _searchLoading;
+
+  List<Giveaway> get searchOpen => _searchOpen;
+  List<Giveaway> get searchFinished => _searchFinished;
+  List<Giveaway> get searchCancelled => _searchCancelled;
+
+  int get searchTotalOpen => _searchTotalOpen;
+  int get searchTotalFinished => _searchTotalFinished;
+  int get searchTotalCancelled => _searchTotalCancelled;
+
+  bool get searchHasMoreOpen => _searchHasMoreOpen;
+  bool get searchHasMoreFinished => _searchHasMoreFinished;
+  bool get searchHasMoreCancelled => _searchHasMoreCancelled;
+
+  // ── Buscar (primera página, todos los grupos) ─────────────
+  Future<void> searchGiveaways(String token, String query) async {
+    _searchQuery = query;
+
+    if (query.isEmpty) {
+      _clearSearchResults();
+      notifyListeners();
+      return;
+    }
+
+    _searchLoading = true;
+    notifyListeners();
+
+    try {
+      final result = await GiveawayService.searchGiveaways(
+        token: token,
+        query: query,
+        limit: _searchPageSize,
+        offset: 0,
+      );
+
+      _parseSearchGroup(result, 'open');
+      _parseSearchGroup(result, 'finished');
+      _parseSearchGroup(result, 'cancelled');
+    } catch (_) {
+      _clearSearchResults();
+    } finally {
+      _searchLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void _parseSearchGroup(Map<String, dynamic> result, String key) {
+    final group = result[key] as Map<String, dynamic>?;
+    if (group == null) return;
+
+    final list = (group['giveaways'] as List<dynamic>)
+        .map((e) => Giveaway.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final total = group['total'] as int? ?? 0;
+    final hasMore = list.length >= _searchPageSize;
+
+    switch (key) {
+      case 'open':
+        _searchOpen = list;
+        _searchTotalOpen = total;
+        _searchHasMoreOpen = hasMore;
+        _searchOffsetOpen = list.length;
+        break;
+      case 'finished':
+        _searchFinished = list;
+        _searchTotalFinished = total;
+        _searchHasMoreFinished = hasMore;
+        _searchOffsetFinished = list.length;
+        break;
+      case 'cancelled':
+        _searchCancelled = list;
+        _searchTotalCancelled = total;
+        _searchHasMoreCancelled = hasMore;
+        _searchOffsetCancelled = list.length;
+        break;
+    }
+  }
+
+  /// Carga más resultados para un grupo específico.
+  /// [groupIndex] : 0=open, 1=finished, 2=cancelled
+  Future<void> searchLoadMore(String token, int groupIndex) async {
+    final statuses = ['open', 'finished', 'cancelled'];
+    final status = statuses[groupIndex];
+
+    final offset = groupIndex == 0
+        ? _searchOffsetOpen
+        : groupIndex == 1
+            ? _searchOffsetFinished
+            : _searchOffsetCancelled;
+
+    try {
+      final result = await GiveawayService.searchGiveaways(
+        token: token,
+        query: _searchQuery,
+        limit: _searchPageSize,
+        offset: offset,
+        statusGroup: status,
+      );
+
+      final group = result[status] as Map<String, dynamic>?;
+      if (group == null) return;
+
+      final list = (group['giveaways'] as List<dynamic>)
+          .map((e) => Giveaway.fromJson(e as Map<String, dynamic>))
+          .toList();
+      final total = group['total'] as int? ?? 0;
+      final hasMore = list.length >= _searchPageSize;
+
+      switch (groupIndex) {
+        case 0:
+          _searchOpen.addAll(list);
+          _searchTotalOpen = total;
+          _searchHasMoreOpen = hasMore;
+          _searchOffsetOpen += list.length;
+          break;
+        case 1:
+          _searchFinished.addAll(list);
+          _searchTotalFinished = total;
+          _searchHasMoreFinished = hasMore;
+          _searchOffsetFinished += list.length;
+          break;
+        case 2:
+          _searchCancelled.addAll(list);
+          _searchTotalCancelled = total;
+          _searchHasMoreCancelled = hasMore;
+          _searchOffsetCancelled += list.length;
+          break;
+      }
+
+      notifyListeners();
+    } catch (_) {
+      // silencioso
+    }
+  }
+
+  void clearSearch() {
+    _searchQuery = '';
+    _clearSearchResults();
+    notifyListeners();
+  }
+
+  void _clearSearchResults() {
+    _searchOpen = [];
+    _searchFinished = [];
+    _searchCancelled = [];
+    _searchTotalOpen = 0;
+    _searchTotalFinished = 0;
+    _searchTotalCancelled = 0;
+    _searchHasMoreOpen = false;
+    _searchHasMoreFinished = false;
+    _searchHasMoreCancelled = false;
+    _searchOffsetOpen = 0;
+    _searchOffsetFinished = 0;
+    _searchOffsetCancelled = 0;
+  }
+
   void clearError() {
     _errorMessage = null;
     notifyListeners();
