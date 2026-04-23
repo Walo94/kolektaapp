@@ -12,7 +12,6 @@ import '../../../../core/constants/app_routes.dart';
 import '../../../admin/providers/auth_provider.dart';
 import '../../providers/batch_provider.dart';
 import '../../services/batch_service.dart';
-import '../../../profile/providers/subscription_provider.dart';
 import '../../../../shared/widgets/kolekta_pagination.dart';
 import '../../../../shared/widgets/kolekta_search_bar.dart';
 import '../../../../shared/widgets/kolekta_search_results.dart';
@@ -79,32 +78,9 @@ class _BatchsHomeScreenState extends State<BatchsHomeScreen>
   }
 
   void _goToCreate() {
-    final sub = context.read<SubscriptionProvider>();
-    final bool hasActiveSubscription = sub.hasActiveSubscription;
-    final int currentBatchsCount = _getOpenBatchsCount();
-
-    if (!hasActiveSubscription && currentBatchsCount >= 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Has alcanzado el límite de tandas activas de tu plan. '
-            'Actualiza a Premium para crear más.',
-          ),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const CreateBatchScreen()),
     );
-  }
-
-  int _getOpenBatchsCount() {
-    final prov = context.read<BatchProvider>();
-    return prov.batchs.where((g) => g.status == BatchStatus.active).length;
   }
 
   // ── Abrir / cerrar buscador ───────────────────────────────
@@ -455,7 +431,7 @@ class _BatchCard extends StatefulWidget {
 }
 
 class _BatchCardState extends State<_BatchCard> {
-  bool _isActionLoading = false;
+  final bool _isActionLoading = false;
 
   Batch get batch => widget.batch;
   bool get canEdit => widget.canEdit;

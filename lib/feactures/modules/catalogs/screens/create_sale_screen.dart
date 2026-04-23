@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -13,7 +12,6 @@ import '../../../../shared/widgets/kolekta_text_field.dart';
 import '../../../admin/providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../providers/product_provider.dart';
-import '../../services/product_service.dart' show Product;
 import '../../services/catalog_service.dart';
 import 'product_picker_screen.dart';
 

@@ -27,9 +27,9 @@ import 'feactures/modules/giveaways/screens/giveaway_detail_screen.dart';
 
 import 'feactures/profile/screens/profile_screen.dart';
 import 'feactures/profile/screens/personal_info_screen.dart';
-import 'feactures/profile/screens/subscription_screen.dart';
 import 'feactures/profile/screens/help_screen.dart';
 import 'feactures/profile/screens/privacy_screen.dart';
+import 'feactures/profile/screens/conditions_screen.dart';
 import 'feactures/profile/screens/notifications_screen.dart';
 import 'feactures/profile/screens/notification_preferences_screen.dart';
 import 'feactures/profile/services/push_notification_handler.dart';
@@ -149,16 +149,16 @@ class _KolektaAppState extends State<KolektaApp> {
               builder: (context, state) => const PersonalInfoScreen(),
             ),
             GoRoute(
-              path: AppRoutes.subscription,
-              builder: (context, state) => const SubscriptionScreen(),
-            ),
-            GoRoute(
               path: AppRoutes.help,
               builder: (context, state) => const HelpScreen(),
             ),
             GoRoute(
               path: AppRoutes.privacy,
               builder: (context, state) => const PrivacyScreen(),
+            ),
+            GoRoute(
+              path: AppRoutes.conditions,
+              builder: (context, state) => const ConditionsScreen(),
             ),
 
             // ── Notificaciones ─────────────────────────────────────

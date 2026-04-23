@@ -8,10 +8,6 @@ class AuthUser {
   final String fullName;
   final String email;
   final String? phone;
-  final String subscriptionPlan;
-  final DateTime? trialEndsAt;
-  final DateTime?
-      subscriptionExpiresAt;
   final bool emailVerified;
   final bool phoneVerified;
   final String? createdAt;
@@ -21,9 +17,6 @@ class AuthUser {
     required this.fullName,
     required this.email,
     this.phone,
-    required this.subscriptionPlan,
-    this.trialEndsAt,
-    this.subscriptionExpiresAt,
     required this.emailVerified,
     this.phoneVerified = false,
     this.createdAt,
@@ -34,14 +27,6 @@ class AuthUser {
         fullName: json['fullName'] ?? '',
         email: json['email'] ?? '',
         phone: json['phone'],
-        // Nuevos campos de suscripción
-        subscriptionPlan: json['subscriptionPlan'] ?? 'free',
-        trialEndsAt: json['trialEndsAt'] != null
-            ? DateTime.tryParse(json['trialEndsAt'])
-            : null,
-        subscriptionExpiresAt: json['subscriptionExpiresAt'] != null
-            ? DateTime.tryParse(json['subscriptionExpiresAt'])
-            : null,
         emailVerified: json['emailVerified'] ?? false,
         phoneVerified: json['phoneVerified'] ?? false,
         createdAt: json['createdAt'],

@@ -420,7 +420,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                                 .copyWith(color: c.textSecondary),
                           ),
                           value: auth.biometricEnabled,
-                          activeColor: AppColors.primary,
+                          activeThumbColor: AppColors.primary,
                           onChanged: isLoading ? null : _handleBiometricToggle,
                         ),
             ),

@@ -5,12 +5,12 @@ import '../../../core/constants/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/kolekta_colors.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../admin/providers/auth_provider.dart';
 import '../../modules/providers/batch_provider.dart';
 import '../../modules/providers/catalog_provider.dart';
 import '../../modules/providers/giveaway_provider.dart';
 import '../providers/notification_provider.dart';
-import '../providers/subscription_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, this.onLogout});
@@ -22,9 +22,12 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  String _appVersion = '';
+
   @override
   void initState() {
     super.initState();
+    _loadVersion();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _loadStats();
 
@@ -34,6 +37,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         context.read<NotificationProvider>().refreshUnreadCount(token);
       }
     });
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) setState(() => _appVersion = info.version);
   }
 
   Future<void> _loadStats() async {
@@ -84,14 +92,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onTap: () => context.push(AppRoutes.personalInfo),
                       ),
                       _SettingsItem(
-                        icon: Icons.credit_card_rounded,
-                        iconBg: c.greenLight,
-                        iconColor: AppColors.green,
-                        title: 'Suscripciones',
-                        subtitle: 'Gestiona tu plan y pagos',
-                        onTap: () => context.push(AppRoutes.subscription),
-                      ),
-                      _SettingsItem(
                         icon: Icons.notifications_none_rounded,
                         iconBg: c.orangeLight,
                         iconColor: AppColors.orange,
@@ -100,8 +100,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onTap: () => context.push(AppRoutes.notifications),
                         trailing: Consumer<NotificationProvider>(
                           builder: (_, notifProvider, __) {
-                            if (!notifProvider.hasUnread)
+                            if (!notifProvider.hasUnread) {
                               return const SizedBox.shrink();
+                            }
                             return Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 7, vertical: 2),
@@ -146,6 +147,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         subtitle: 'Datos y permisos',
                         onTap: () => context.push(AppRoutes.privacy),
                       ),
+                      _SettingsItem(
+                        icon: Icons.gavel_rounded,
+                        iconBg: c.successLight,
+                        iconColor: AppColors.success,
+                        title: 'Términos y Condiciones',
+                        subtitle: 'Términos generales del servicio',
+                        onTap: () => context.push(AppRoutes.conditions),
+                      ),
                     ]),
                     const SizedBox(height: 20),
                     Text('Soporte',
@@ -186,7 +195,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 12),
                     Center(
-                      child: Text('Kolekta v1.0.0',
+                      child: Text(
+                          _appVersion.isEmpty ? '' : 'Kolekta v$_appVersion',
                           style: AppTextStyles.labelSmall
                               .copyWith(color: c.textHint)),
                     ),
@@ -241,9 +251,6 @@ class _ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final sub = context.watch<SubscriptionProvider>(); // ← Nueva línea
-
-    final bool isPremium = sub.hasActiveSubscription;
 
     return Container(
       width: double.infinity,
@@ -289,36 +296,6 @@ class _ProfileHeader extends StatelessWidget {
             auth.displayEmail,
             style: AppTextStyles.bodySmall.copyWith(
               color: Colors.white.withOpacity(0.75),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Badge actualizado con información de Stripe
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withOpacity(0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isPremium ? Icons.star_rounded : Icons.star_border_rounded,
-                  color: AppColors.orange,
-                  size: 16,
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  isPremium ? 'Plan Premium' : 'Plan Gratuito',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
             ),
           ),
         ],

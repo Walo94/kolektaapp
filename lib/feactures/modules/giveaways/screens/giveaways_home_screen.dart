@@ -13,7 +13,6 @@ import '../../../../shared/widgets/kolekta_search_bar.dart';
 import '../../../../shared/widgets/kolekta_search_results.dart';
 import 'create_giveaway_screen.dart';
 import 'giveaway_detail_screen.dart';
-import '../../../profile/providers/subscription_provider.dart';
 
 class GiveawaysHomeScreen extends StatefulWidget {
   const GiveawaysHomeScreen({super.key});
@@ -69,31 +68,9 @@ class _GiveawaysHomeScreenState extends State<GiveawaysHomeScreen>
   }
 
   void _goToCreate() {
-    final sub = context.read<SubscriptionProvider>();
-
-    final bool hasActiveSubscription = sub.hasActiveSubscription;
-    final int currentGiveawaysCount = _getOpenGiveawaysCount();
-
-    if (!hasActiveSubscription && currentGiveawaysCount >= 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'Has alcanzado el límite de rifas activas en tu plan. Suscríbete a Premium para crear más.'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const CreateGiveawayScreen()),
     );
-  }
-
-  int _getOpenGiveawaysCount() {
-    final prov = context.read<GiveawayProvider>();
-    return prov.giveaways.where((g) => g.status == GiveawayStatus.open).length;
   }
 
   void _goToDetail(Giveaway g) {

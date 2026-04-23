@@ -413,7 +413,7 @@ final List<Map<String, String>> _generalFaqs = [
   {
     'q': '¿Es gratis usar Kolekta?',
     'a':
-        'Sí, la versión básica es gratuita. Contamos con un plan Premium que desbloquea el uso ilimitado para la creación de tandas, rifas y ventas.'
+        'Sí, Kolekta es completamente gratuita. Sin suscripciones, sin sorpresas. Si te es útil, una donación voluntaria nos ayuda a seguir mejorando.'
   },
   {
     'q': '¿Cómo recupero mi contraseña?',
@@ -436,7 +436,7 @@ final List<Map<String, String>> _tandasFaqs = [
   {
     'q': '¿Como se manejan los pagos en la aplicación?',
     'a':
-        'Por ahora kolekta no administrar transacciones o pagos de dinero real, el administrador se debe de encargar de marcar como entregado cada número'
+        'Por ahora kolekta no administra transacciones o pagos de dinero real, el administrador se debe de encargar de marcar como entregado cada número'
   },
 ];
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/gestures.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/kolekta_colors.dart';
@@ -147,7 +149,6 @@ class _SuccessScreenState extends State<_SuccessScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
-
               ScaleTransition(
                 scale: _scaleAnim,
                 child: Container(
@@ -164,9 +165,7 @@ class _SuccessScreenState extends State<_SuccessScreen>
                   ),
                 ),
               ),
-
               const SizedBox(height: 32),
-
               FadeTransition(
                 opacity: _fadeAnim,
                 child: Column(
@@ -202,9 +201,7 @@ class _SuccessScreenState extends State<_SuccessScreen>
                   ],
                 ),
               ),
-
               const Spacer(),
-
               FadeTransition(
                 opacity: _fadeAnim,
                 child: KolektaButton(
@@ -214,7 +211,6 @@ class _SuccessScreenState extends State<_SuccessScreen>
                       color: Colors.white, size: 18),
                 ),
               ),
-
               const SizedBox(height: 32),
             ],
           ),
@@ -246,6 +242,20 @@ class _FormScreen extends StatelessWidget {
   final VoidCallback onRegister;
   final VoidCallback? onLogin;
 
+  Future<void> _launchTermsUrl() async {
+    final Uri url = Uri.parse('https://kolekta.gamezdev.com.mx/terminos');
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      throw Exception('No se pudo abrir $url');
+    }
+  }
+
+  Future<void> _launchPrivacyUrl() async {
+    final Uri url = Uri.parse('https://kolekta.gamezdev.com.mx/privacidad');
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      throw Exception('No se pudo abrir $url');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.kolekta;
@@ -261,18 +271,12 @@ class _FormScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-
-             
-
               const SizedBox(height: 20),
-
               const Center(
                 child: KolektaLogoWidget(
                     height: 140, width: 140, showSlogan: false),
               ),
-
               const SizedBox(height: 16),
-
               Center(
                 child: Column(
                   children: [
@@ -290,9 +294,7 @@ class _FormScreen extends StatelessWidget {
                   ],
                 ),
               ),
-
               const SizedBox(height: 28),
-
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -311,9 +313,7 @@ class _FormScreen extends StatelessWidget {
                   key: formKey,
                   child: Column(
                     children: [
-
                       const SizedBox(height: 16),
-
                       KolektaTextField(
                         controller: nameCtrl,
                         hint: 'Nombre completo',
@@ -359,7 +359,6 @@ class _FormScreen extends StatelessWidget {
                             v!.length < 6 ? 'Mínimo 6 caracteres' : null,
                       ),
                       const SizedBox(height: 16),
-
                       RichText(
                         textAlign: TextAlign.center,
                         text: TextSpan(
@@ -374,6 +373,8 @@ class _FormScreen extends StatelessWidget {
                                 fontSize: 12,
                                 decoration: TextDecoration.none,
                               ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = _launchTermsUrl,
                             ),
                             const TextSpan(text: ' y '),
                             TextSpan(
@@ -382,12 +383,13 @@ class _FormScreen extends StatelessWidget {
                                 fontSize: 12,
                                 decoration: TextDecoration.none,
                               ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = _launchPrivacyUrl,
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 20),
-
                       KolektaButton(
                         label: 'Crear cuenta',
                         onPressed: isLoading ? null : onRegister,
@@ -397,9 +399,7 @@ class _FormScreen extends StatelessWidget {
                   ),
                 ),
               ),
-
               const SizedBox(height: 24),
-
               Center(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,

@@ -13,6 +13,7 @@ class AppRoutes {
   static const String subscription = '/home/profile/subscription';
   static const String help = '/home/profile/help';
   static const String privacy = '/home/profile/privacy';
+  static const String conditions = '/home/profile/conditions';
 
   // Módulos
 

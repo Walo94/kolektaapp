@@ -695,7 +695,7 @@ class _CreateGiveawayScreenState extends State<CreateGiveawayScreen> {
                       ),
                       Switch(
                         value: _autoDrawEnabled,
-                        activeColor: AppColors.orange,
+                        activeThumbColor: AppColors.orange,
                         onChanged: (v) => setState(() => _autoDrawEnabled = v),
                       ),
                     ],

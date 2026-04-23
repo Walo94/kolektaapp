@@ -52,6 +52,10 @@
         </intent>
     </queries>
 
+    <queries>
+        <package android:name="com.paypal.android.p2pmobile" />
+    </queries>
+
     <!-- Biometría -->
     <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>

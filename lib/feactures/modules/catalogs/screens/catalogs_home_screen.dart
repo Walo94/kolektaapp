@@ -8,9 +8,7 @@ import '../../../../shared/widgets/kolekta_search_bar.dart';
 import '../../../../shared/widgets/kolekta_search_results.dart';
 import '../../../admin/providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
-import '../../providers/product_provider.dart';
 import '../../services/catalog_service.dart';
-import '../../../profile/providers/subscription_provider.dart';
 import 'create_sale_screen.dart';
 import 'sale_detail_screen.dart';
 import 'products_home_screen.dart';
@@ -72,24 +70,6 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
   }
 
   void _goToCreate() {
-    final sub = context.read<SubscriptionProvider>();
-    final bool hasActiveSubscription = sub.hasActiveSubscription;
-    final int currentSalesCount = _getOpenSalesCount();
-
-    if (!hasActiveSubscription && currentSalesCount >= 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Has alcanzado el límite de ventas activas de tu plan. '
-            'Actualiza a Premium para crear más.',
-          ),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const CreateSaleScreen()),
     );
@@ -99,11 +79,6 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const ProductsHomeScreen()),
     );
-  }
-
-  int _getOpenSalesCount() {
-    final prov = context.read<CatalogProvider>();
-    return prov.sales.where((g) => g.status == SaleStatus.pending).length;
   }
 
   void _goToDetail(Sale sale) {

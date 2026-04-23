@@ -1,7 +1,5 @@
-// products_home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/kolekta_colors.dart';
@@ -312,7 +310,6 @@ class _ProductCard extends StatelessWidget {
   final VoidCallback onDelete;
 
   const _ProductCard({
-    super.key,
     required this.product,
     required this.onEdit,
     required this.onDelete,
@@ -556,7 +553,7 @@ class _SheetOption extends StatelessWidget {
 
 class _ImagePlaceholder extends StatelessWidget {
   final KolektaColors c;
-  const _ImagePlaceholder({super.key, required this.c});
+  const _ImagePlaceholder({required this.c});
 
   @override
   Widget build(BuildContext context) {
@@ -576,7 +573,6 @@ class _SafeNetworkImage extends StatelessWidget {
   final KolektaColors c;
 
   const _SafeNetworkImage({
-    super.key,
     required this.imageUrl,
     required this.width,
     required this.height,

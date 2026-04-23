@@ -853,7 +853,7 @@ class _StepInfo extends StatelessWidget {
                     .copyWith(color: context.kolekta.textSecondary),
               ),
               value: randomize,
-              activeColor: AppColors.primary,
+              activeThumbColor: AppColors.primary,
               onChanged: onRandomizeChanged,
             ),
           ),

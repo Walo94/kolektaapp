@@ -1633,7 +1633,9 @@ class _TicketCell extends StatelessWidget {
       onTap: () {
         if (!isOpen) return;
         if (ticket.status == TicketStatus.free ||
-            ticket.status == TicketStatus.cancelled) return;
+            ticket.status == TicketStatus.cancelled) {
+          return;
+        }
         _showTicketMenu(context);
       },
       child: Container(

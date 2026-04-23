@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kolekta/feactures/profile/services/push_notification_handler.dart';
-import 'package:kolekta/feactures/profile/providers/subscription_provider.dart';
 import 'package:kolekta/core/utils/error_parser.dart';
 import '../services/auth_service.dart';
 
@@ -13,12 +12,6 @@ class AuthProvider extends ChangeNotifier {
   bool _biometricEnabled = false;
   String? _biometricEmail;
   String? _biometricPassword;
-
-  SubscriptionProvider? _subscriptionProvider;
-
-  void attachSubscriptionProvider(SubscriptionProvider sp) {
-    _subscriptionProvider = sp;
-  }
 
   // Claves de persistencia
   static const _keyBiometricEnabled = 'biometric_enabled';
@@ -43,31 +36,6 @@ class AuthProvider extends ChangeNotifier {
   String get displayInitial => _user?.fullName.isNotEmpty == true
       ? _user!.fullName[0].toUpperCase()
       : 'U';
-
-  // ── NUEVOS GETTERS DE SUSCRIPCIÓN ────────────────────────
-  String get subscriptionPlan => _user?.subscriptionPlan ?? 'free';
-
-  bool get isPremium {
-    if (_user == null) return false;
-
-    final now = DateTime.now();
-
-    // Premium según Stripe + fecha de expiración válida
-    if (_user!.subscriptionPlan == 'premium') {
-      if (_user!.subscriptionExpiresAt != null) {
-        return _user!.subscriptionExpiresAt!.isAfter(now);
-      }
-      return true; // premium sin fecha de expiración (caso raro)
-    }
-
-    return false;
-  }
-
-  bool get isTrialActive {
-    if (_user == null) return false;
-    final now = DateTime.now();
-    return _user!.trialEndsAt?.isAfter(now) ?? false;
-  }
 
   // ── Persistencia biométrica ───────────────────────────────
 
@@ -108,8 +76,6 @@ class AuthProvider extends ChangeNotifier {
 
       await PushNotificationHandler.instance.setAuthToken(result.token);
 
-      await _loadSubscription();
-
       notifyListeners();
       return true;
     } catch (e) {
@@ -148,46 +114,15 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // ── NUEVO: Activar prueba gratis de 7 días ─────────────────────────────
-  Future<bool> startFreeTrial() async {
-    if (_token == null) {
-      _errorMessage = 'No hay sesión activa';
-      notifyListeners();
-      return false;
-    }
-
-    _setLoading(true);
-    _errorMessage = null;
-    try {
-      await AuthService.startFreeTrial(token: _token!);
-      // Refrescar información del usuario después de activar el trial
-      await refreshUserInfo();
-      return true;
-    } catch (e) {
-      _errorMessage = _parseError(e);
-      notifyListeners();
-      return false;
-    } finally {
-      _setLoading(false);
-    }
-  }
-
   // ── REFRESH USER INFO ────────────────────────────────────
   Future<void> refreshUserInfo() async {
     if (_token == null) return;
     try {
       final result = await AuthService.refreshUserInfo(token: _token!);
       _user = result.user;
-      await _loadSubscription();
       notifyListeners();
     } catch (e) {
       _errorMessage = _parseError(e);
-    }
-  }
-
-  Future<void> _loadSubscription() async {
-    if (_token != null && _subscriptionProvider != null) {
-      await _subscriptionProvider!.loadActiveSubscription(token: _token!);
     }
   }
 
@@ -294,9 +229,6 @@ class AuthProvider extends ChangeNotifier {
           fullName: _user!.fullName,
           email: _user!.email,
           phone: _user!.phone,
-          subscriptionPlan: _user!.subscriptionPlan,
-          trialEndsAt: _user!.trialEndsAt,
-          subscriptionExpiresAt: _user!.subscriptionExpiresAt,
           emailVerified: _user!.emailVerified,
           phoneVerified: true,
           createdAt: _user!.createdAt,
@@ -343,7 +275,6 @@ class AuthProvider extends ChangeNotifier {
   // ── LOGOUT ───────────────────────────────────────────────
   void logout() {
     PushNotificationHandler.instance.clearAuthToken();
-    _subscriptionProvider?.clear();
     _user = null;
     _token = null;
     _errorMessage = null;

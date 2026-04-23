@@ -5,9 +5,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/kolekta_colors.dart';
 import '../../admin/providers/auth_provider.dart';
-import '../providers/subscription_provider.dart';
-import '../../../core/constants/app_routes.dart';
-import 'package:go_router/go_router.dart';
 
 class PersonalInfoScreen extends StatefulWidget {
   const PersonalInfoScreen({super.key});
@@ -170,15 +167,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
 
               const SizedBox(height: 28),
 
-              // ── Tipo de cuenta ─────────────────────────────────
-              Text('Tipo de cuenta',
-                  style: AppTextStyles.headingSmall
-                      .copyWith(color: c.textPrimary)),
-              const SizedBox(height: 12),
-
-              _AccountPlanCard(),
-
-              const SizedBox(height: 28),
+              
 
               // ── Detalles ───────────────────────────────────────
               Text('Detalles',
@@ -347,88 +336,6 @@ class _VerifiedBadge extends StatelessWidget {
               color: verified ? AppColors.success : AppColors.orange,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Tarjeta de plan de cuenta (gratuito / premium)
-class _AccountPlanCard extends StatelessWidget {
-  const _AccountPlanCard({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.kolekta;
-    final sub =
-        context.watch<SubscriptionProvider>(); // ← Usamos SubscriptionProvider
-    final bool isPremium = sub.hasActiveSubscription;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: isPremium ? c.orangeLight : c.primarySurface,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              isPremium ? Icons.star_rounded : Icons.star_border_rounded,
-              color: isPremium ? AppColors.orange : AppColors.primary,
-              size: 26,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isPremium ? 'Miembro Premium' : 'Plan Gratuito',
-                  style:
-                      AppTextStyles.labelLarge.copyWith(color: c.textPrimary),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  isPremium
-                      ? 'Acceso a todas las funciones sin límites'
-                      : 'Actualiza para crear ilimitadamente rifas, tandas y más',
-                  style:
-                      AppTextStyles.bodySmall.copyWith(color: c.textSecondary),
-                ),
-              ],
-            ),
-          ),
-          if (!isPremium)
-            GestureDetector(
-              onTap: () => context.push(AppRoutes.subscription),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                decoration: BoxDecoration(
-                  color: AppColors.orange,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'Actualizar',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );

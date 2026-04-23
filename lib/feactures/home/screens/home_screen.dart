@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
@@ -12,7 +13,6 @@ import '../../modules/providers/batch_provider.dart';
 import '../../modules/providers/catalog_provider.dart';
 import '../../modules/providers/giveaway_provider.dart';
 import '../../profile/providers/notification_provider.dart';
-import '../../profile/providers/subscription_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.onNavigate});
@@ -71,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 16),
                 _QuickActions(
                   onCreatePressed: () => _showCreateSheet(context),
+                  onDonatePressed: () => _showDonateDialog(context),
                 ),
                 const SizedBox(height: 32),
                 Text('Tus herramientas',
@@ -150,12 +151,25 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (_) => _CreateSheet(onNavigate: widget.onNavigate),
     );
   }
+
+  // ── Diálogo de donación ────────────────────────────────────────────────────
+  void _showDonateDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: context.kolekta.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => const _DonateSheet(),
+    );
+  }
 }
 
 // ── Header Centrado ─────────────────────────────────────────────────────────
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({super.key});
+  const _HomeHeader();
 
   @override
   Widget build(BuildContext context) {
@@ -187,8 +201,12 @@ class _HomeHeader extends StatelessWidget {
 
 class _QuickActions extends StatelessWidget {
   final VoidCallback onCreatePressed;
+  final VoidCallback onDonatePressed;
 
-  const _QuickActions({required this.onCreatePressed, super.key});
+  const _QuickActions({
+    required this.onCreatePressed,
+    required this.onDonatePressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -199,6 +217,13 @@ class _QuickActions extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        // Donar — PayPal (primero)
+        _QuickActionItem(
+          iconPath: 'assets/images/paypal.png',
+          label: 'Donar',
+          color: const Color(0xFFE8F0FB), // azul PayPal muy suave
+          onTap: onDonatePressed,
+        ),
         // Crear
         _QuickActionItem(
           iconPath: 'assets/images/add.png',
@@ -245,7 +270,6 @@ class _QuickActionItem extends StatelessWidget {
     required this.color,
     required this.onTap,
     this.badge,
-    super.key,
   });
 
   @override
@@ -308,6 +332,216 @@ class _QuickActionItem extends StatelessWidget {
   }
 }
 
+// ── Donate Sheet ─────────────────────────────────────────────────────────────
+
+class _DonateSheet extends StatefulWidget {
+  const _DonateSheet();
+
+  @override
+  State<_DonateSheet> createState() => _DonateSheetState();
+}
+
+class _DonateSheetState extends State<_DonateSheet> {
+  // URL del hosted button (donación fija con monto libre)
+  static const _webUrl = 'https://www.paypal.com/ncp/payment/XWEFC5NQBQT54';
+  // PayPal.Me — Android lo intercepta y abre la app si está instalada
+  static const _appUrl = 'https://www.paypal.me/kolektaapp';
+  // Package name oficial de PayPal en Android
+  static const _paypalPackage = 'com.paypal.android.p2pmobile';
+
+  bool _isLoading = false;
+
+  /// Detecta si PayPal está instalado usando su package name.
+  /// Requiere <queries> en AndroidManifest.xml (ver instrucciones).
+  Future<bool> _isPayPalInstalled() async {
+    try {
+      return await canLaunchUrl(
+        Uri.parse('android-app://$_paypalPackage'),
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _launchWithChoice() async {
+    final webUri = Uri.parse(_webUrl);
+    final appUri = Uri.parse(_appUrl);
+
+    final hasApp = await _isPayPalInstalled();
+
+    if (!mounted) return;
+
+    if (hasApp) {
+      // Tiene la app → preguntar qué prefiere
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text('¿Cómo deseas donar?'),
+          content: const Text(
+            'Detectamos que tienes PayPal instalado. ¿Prefieres abrir la app o el navegador?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                await launchUrl(appUri,
+                    mode: LaunchMode.externalNonBrowserApplication);
+              },
+              child: const Text('Abrir app'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF003087),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                await launchUrl(webUri,
+                    mode: LaunchMode.externalApplication);
+              },
+              child: const Text('Abrir navegador',
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // No tiene la app → abrir navegador directamente
+      setState(() => _isLoading = true);
+      try {
+        final launched =
+            await launchUrl(webUri, mode: LaunchMode.externalApplication);
+        if (!launched && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se pudo abrir PayPal. Intenta más tarde.'),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.kolekta;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 32,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: c.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Logo PayPal + título
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F0FB),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Image.asset(
+                'assets/images/paypal.png',
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Apóyanos con una donación',
+            style: AppTextStyles.headingMedium.copyWith(color: c.textPrimary),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Kolekta es 100% gratis. Si te es útil, una donación voluntaria nos ayuda a seguir mejorando y pagar los servidores. ¡Gracias! 💙',
+            style: AppTextStyles.bodySmall.copyWith(color: c.textSecondary),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+
+          // Botón principal
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _launchWithChoice,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF003087),
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFF003087).withOpacity(0.6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          'assets/images/paypal.png',
+                          width: 22,
+                          height: 22,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Donar con PayPal',
+                          style: AppTextStyles.buttonMedium
+                              .copyWith(color: Colors.white),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Pago seguro · 100% voluntario · Nunca obligatorio',
+            style: AppTextStyles.labelSmall.copyWith(color: c.textHint),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Tool Card ───────────────────────────────────────────────────────────────
 
 class _ToolCard extends StatelessWidget {
@@ -335,14 +569,13 @@ class _ToolCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.kolekta;
 
-    // Definimos el color de fondo según la herramienta
     Color backgroundColor;
     if (iconPath.contains('batch')) {
       backgroundColor = c.purpleLight;
     } else if (iconPath.contains('catalog')) {
       backgroundColor = c.greenLight;
     } else {
-      backgroundColor = c.pinkLight; // para rifas
+      backgroundColor = c.pinkLight;
     }
 
     return Container(
@@ -363,7 +596,6 @@ class _ToolCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              // ← Fondo de color suave como en el Profile
               Container(
                 width: 52,
                 height: 52,
@@ -448,13 +680,6 @@ class _CreateSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.kolekta;
-    final subProvider = context.watch<SubscriptionProvider>();
-    final bool isPremium = subProvider.hasActiveSubscription;
-
-    // Contadores actuales de items activos
-    final activeBatchs = context.watch<BatchProvider>().activeBatchsCount;
-    final pendingSales = context.watch<CatalogProvider>().pendingCount;
-    final openGiveaways = context.watch<GiveawayProvider>().openCount;
 
     final options = [
       (
@@ -462,27 +687,18 @@ class _CreateSheet extends StatelessWidget {
         color: AppColors.purple,
         label: 'Nueva Tanda',
         route: AppRoutes.createBatch,
-        isBlocked: !isPremium && activeBatchs >= 1,
-        blockedMessage:
-            'Límite de 1 tanda activa alcanzado.\nActualiza a Premium.',
       ),
       (
         iconPath: 'assets/images/catalog.png',
         color: AppColors.green,
         label: 'Nueva Venta',
         route: AppRoutes.createSale,
-        isBlocked: !isPremium && pendingSales >= 1,
-        blockedMessage:
-            'Límite de 1 venta activa alcanzado.\nActualiza a Premium.',
       ),
       (
         iconPath: 'assets/images/giveaway.png',
         color: AppColors.pink,
         label: 'Nueva Rifa',
         route: AppRoutes.createGiveaway,
-        isBlocked: !isPremium && openGiveaways >= 1,
-        blockedMessage:
-            'Límite de 1 rifa activa alcanzado.\nActualiza a Premium.',
       ),
     ];
 
@@ -497,85 +713,61 @@ class _CreateSheet extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                  color: c.border, borderRadius: BorderRadius.circular(2)),
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: c.border, borderRadius: BorderRadius.circular(2)),
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            '¿Qué deseas crear?',
-            style: AppTextStyles.headingMedium.copyWith(color: c.textPrimary),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 20),
-          ...options.map((o) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: ListTile(
-                  leading: Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: o.color.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Center(
-                      child: Image.asset(
-                        o.iconPath,
-                        width: 32,
-                        height: 32,
-                        fit: BoxFit.contain,
+            const SizedBox(height: 24),
+            Text(
+              '¿Qué deseas crear?',
+              style: AppTextStyles.headingMedium.copyWith(color: c.textPrimary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            ...options.map((o) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: ListTile(
+                    leading: Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: o.color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Center(
+                        child: Image.asset(
+                          o.iconPath,
+                          width: 32,
+                          height: 32,
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     ),
-                  ),
-                  title: Text(
-                    o.label,
-                    style: AppTextStyles.labelLarge.copyWith(
-                      color: o.isBlocked ? c.textHint : c.textPrimary,
+                    title: Text(
+                      o.label,
+                      style: AppTextStyles.labelLarge.copyWith(
+                        color: c.textPrimary,
+                      ),
                     ),
+                    trailing:
+                        Icon(Icons.chevron_right_rounded, color: c.textHint),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    tileColor: c.surfaceVariant,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      onNavigate?.call(o.route);
+                    },
                   ),
-                  subtitle: o.isBlocked
-                      ? Text(
-                          o.blockedMessage,
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.error,
-                          ),
-                        )
-                      : null,
-                  trailing: o.isBlocked
-                      ? const Icon(Icons.lock_rounded, color: AppColors.error)
-                      : Icon(Icons.chevron_right_rounded, color: c.textHint),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  tileColor: c.surfaceVariant,
-                  onTap: o.isBlocked
-                      ? () {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Has alcanzado el límite de tu plan actual. '
-                                'Actualiza a Premium para crear más.',
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                              backgroundColor: AppColors.error,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        }
-                      : () {
-                          Navigator.of(context).pop();
-                          onNavigate?.call(o.route);
-                        },
-                ),
-              )),
-          const SizedBox(height: 8),
-        ],
+                )),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
-    ),
-  );
+    );
   }
 }

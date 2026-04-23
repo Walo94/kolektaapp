@@ -4,8 +4,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/kolekta_colors.dart';
 
-class PrivacyScreen extends StatelessWidget {
-  const PrivacyScreen({super.key});
+class ConditionsScreen extends StatelessWidget {
+  const ConditionsScreen({super.key});
 
   Future<void> _launchEmail(BuildContext context) async {
     final uri = Uri.parse('mailto:contacto@gamezdev.com.mx');
@@ -33,7 +33,7 @@ class PrivacyScreen extends StatelessWidget {
         backgroundColor: c.background,
         elevation: 0,
         title: Text(
-          'Política de Privacidad',
+          'Términos y Condiciones',
           style: AppTextStyles.headingMedium.copyWith(color: c.textPrimary),
         ),
         iconTheme: IconThemeData(color: c.textPrimary),
@@ -65,25 +65,25 @@ class PrivacyScreen extends StatelessWidget {
                       width: 64,
                       height: 64,
                       decoration: BoxDecoration(
-                        color: c.purpleLight,
+                        color: c.successLight,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        Icons.lock_outline_rounded,
+                        Icons.gavel_rounded,
                         size: 34,
-                        color: AppColors.purple,
+                        color: AppColors.success,
                       ),
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Política de Privacidad',
+                      'Términos y Condiciones',
                       style: AppTextStyles.headingLarge
                           .copyWith(color: c.textPrimary),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Esta política aplica a la app Kolekta creada por gamezdev como servicio Freemium.',
+                      'Al descargar o usar Kolekta, aceptas automáticamente los siguientes términos. Lee detenidamente antes de usar la aplicación.',
                       style: AppTextStyles.bodyMedium.copyWith(
                         color: c.textSecondary,
                         height: 1.5,
@@ -96,37 +96,29 @@ class PrivacyScreen extends StatelessWidget {
 
               const SizedBox(height: 28),
 
-              // Sección: Recopilación y uso de información
-              _SectionTitle(title: 'Recopilación y uso de información'),
+              // Sección: Propiedad intelectual
+              _SectionTitle(title: 'Propiedad intelectual'),
               const SizedBox(height: 12),
               _InfoCard(
                 children: [
                   Text(
-                    'La aplicación recopila información cuando la descargas y la usas. Esto puede incluir:',
-                    style: AppTextStyles.bodyMedium
-                        .copyWith(color: c.textSecondary, height: 1.5),
+                    'Está estrictamente prohibido:',
+                    style:
+                        AppTextStyles.bodyMedium.copyWith(color: c.textPrimary),
                   ),
-                  const SizedBox(height: 12),
-                  _BulletItem(text: 'Dirección IP de tu dispositivo'),
+                  const SizedBox(height: 10),
                   _BulletItem(
                       text:
-                          'Páginas visitadas, fecha, hora y tiempo en la app'),
-                  _BulletItem(text: 'Sistema operativo de tu dispositivo'),
-                  const SizedBox(height: 10),
-                  _InfoChip(
-                    icon: Icons.location_off_outlined,
-                    text:
-                        'No se recopila información precisa sobre la ubicación de tu dispositivo.',
-                  ),
+                          'Copiar o modificar la aplicación o cualquier parte de ella'),
+                  _BulletItem(
+                      text:
+                          'Intentar extraer el código fuente de la aplicación'),
+                  _BulletItem(
+                      text:
+                          'Traducir la app a otros idiomas o crear versiones derivadas'),
                   const SizedBox(height: 8),
-                  _InfoChip(
-                    icon: Icons.smart_toy_outlined,
-                    text:
-                        'No se utilizan tecnologías de Inteligencia Artificial para procesar tus datos.',
-                  ),
-                  const SizedBox(height: 12),
                   Text(
-                    'Para una mejor experiencia, podemos solicitarte información personal como correo electrónico, nombre y teléfono. Esta información es retenida y usada conforme a esta política.',
+                    'Todas las marcas registradas, derechos de autor, derechos de bases de datos y demás derechos de propiedad intelectual relacionados con la aplicación permanecen siendo propiedad del proveedor.',
                     style: AppTextStyles.bodySmall
                         .copyWith(color: c.textSecondary, height: 1.5),
                   ),
@@ -135,89 +127,74 @@ class PrivacyScreen extends StatelessWidget {
 
               const SizedBox(height: 28),
 
-              // Sección: Acceso de terceros
-              _SectionTitle(title: 'Acceso de terceros'),
+              // Sección: Cambios en el servicio
+              _SectionTitle(title: 'Cambios en el servicio'),
               const SizedBox(height: 12),
               _InfoCard(
                 children: [
                   Text(
-                    'Solo datos agregados y anonimizados se transmiten periódicamente a servicios externos para mejorar la app. El proveedor puede compartir tu información en los siguientes casos:',
+                    'El proveedor se reserva el derecho de modificar la aplicación o cobrar por sus servicios en cualquier momento y por cualquier razón. Cualquier cargo será comunicado claramente.',
+                    style: AppTextStyles.bodyMedium
+                        .copyWith(color: c.textSecondary, height: 1.5),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 28),
+
+              // Sección: Seguridad del dispositivo
+              _SectionTitle(title: 'Seguridad de tu dispositivo'),
+              const SizedBox(height: 12),
+              _InfoCard(
+                children: [
+                  Text(
+                    'La aplicación almacena y procesa los datos personales que proporcionas. Eres responsable de mantener la seguridad de tu teléfono y el acceso a la app.',
                     style: AppTextStyles.bodyMedium
                         .copyWith(color: c.textSecondary, height: 1.5),
                   ),
                   const SizedBox(height: 12),
-                  _BulletItem(
-                      text:
-                          'Cuando sea requerido por ley o proceso legal (citación, orden judicial, etc.)'),
-                  _BulletItem(
-                      text:
-                          'Para proteger derechos, seguridad de usuarios o investigar fraudes'),
-                  _BulletItem(
-                      text:
-                          'Con proveedores de confianza que trabajan bajo las mismas reglas de privacidad'),
-                ],
-              ),
-
-              const SizedBox(height: 28),
-
-              // Sección: Derecho a no participar
-              _SectionTitle(title: 'Derecho a no participar'),
-              const SizedBox(height: 12),
-              _InfoCard(
-                children: [
-                  Text(
-                    'Puedes detener toda recopilación de información desinstalando la aplicación mediante el proceso estándar de tu dispositivo o tienda de aplicaciones.',
-                    style: AppTextStyles.bodyMedium
-                        .copyWith(color: c.textSecondary, height: 1.5),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 28),
-
-              // Sección: Retención de datos
-              _SectionTitle(title: 'Retención de datos'),
-              const SizedBox(height: 12),
-              _InfoCard(
-                children: [
-                  Text(
-                    'Los datos proporcionados se conservan mientras uses la aplicación y por un tiempo razonable posterior. Si deseas eliminar tus datos, puedes contactarnos y responderemos en un tiempo razonable.',
-                    style: AppTextStyles.bodyMedium
-                        .copyWith(color: c.textSecondary, height: 1.5),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 28),
-
-              // Sección: Menores de edad
-              _SectionTitle(title: 'Menores de edad'),
-              const SizedBox(height: 12),
-              _InfoCard(
-                children: [
-                  _InfoChip(
-                    icon: Icons.child_care_outlined,
+                  _WarningChip(
+                    icon: Icons.warning_amber_rounded,
                     text:
-                        'No recopilamos conscientemente datos de menores de 13 años.',
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Instamos a los padres y tutores a supervisar el uso de internet de sus hijos. Si crees que un menor ha proporcionado información personal, contáctanos para tomar las medidas necesarias. Debes tener al menos 16 años para dar consentimiento al procesamiento de tus datos.',
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: c.textSecondary, height: 1.5),
+                        'Se desaconseja hacer jailbreak o root a tu teléfono, ya que puede exponer el dispositivo a malware, comprometer funciones de seguridad y causar que la app no funcione correctamente.',
                   ),
                 ],
               ),
 
               const SizedBox(height: 28),
 
-              // Sección: Seguridad
-              _SectionTitle(title: 'Seguridad'),
+              // Sección: Conectividad y cargos
+              _SectionTitle(title: 'Conectividad y cargos'),
+              const SizedBox(height: 12),
+              _InfoCard(
+                children: [
+                  _BulletItem(
+                      text:
+                          'Algunas funciones requieren conexión a internet activa (Wi-Fi o datos móviles)'),
+                  _BulletItem(
+                      text:
+                          'El proveedor no se hace responsable si la app no funciona por falta de acceso a internet'),
+                  _BulletItem(
+                      text:
+                          'Aceptas la responsabilidad de cargos de datos, incluyendo roaming si usas la app fuera de tu país sin desactivar datos móviles'),
+                  _BulletItem(
+                      text:
+                          'Si no eres el titular del plan de datos, se asume que tienes permiso del titular'),
+                  _BulletItem(
+                      text:
+                          'El proveedor no se hace responsable si tu dispositivo se queda sin batería'),
+                ],
+              ),
+
+              const SizedBox(height: 28),
+
+              // Sección: Limitación de responsabilidad
+              _SectionTitle(title: 'Limitación de responsabilidad'),
               const SizedBox(height: 12),
               _InfoCard(
                 children: [
                   Text(
-                    'Nos preocupamos por salvaguardar la confidencialidad de tu información. Proveemos salvaguardas físicas, electrónicas y procedimentales para proteger la información que procesamos y mantenemos.',
+                    'El proveedor se apoya en terceros para suministrar información que pone a tu disposición. No acepta responsabilidad por pérdidas directas o indirectas derivadas de confiar completamente en la funcionalidad de la aplicación.',
                     style: AppTextStyles.bodyMedium
                         .copyWith(color: c.textSecondary, height: 1.5),
                   ),
@@ -226,28 +203,34 @@ class PrivacyScreen extends StatelessWidget {
 
               const SizedBox(height: 28),
 
-              // Sección: Cambios en la política
-              _SectionTitle(title: 'Cambios en esta política'),
+              // Sección: Actualizaciones y terminación
+              _SectionTitle(title: 'Actualizaciones y terminación'),
               const SizedBox(height: 12),
               _InfoCard(
                 children: [
                   Text(
-                    'Esta Política de Privacidad puede actualizarse de vez en cuando. Te notificaremos de cualquier cambio actualizando esta página. Se te aconseja consultarla regularmente, ya que el uso continuo implica la aceptación de los cambios.',
+                    'El proveedor puede desear actualizar la aplicación. Los requisitos del sistema operativo pueden cambiar y deberás descargar las actualizaciones para continuar usando la app.',
                     style: AppTextStyles.bodyMedium
                         .copyWith(color: c.textSecondary, height: 1.5),
+                  ),
+                  const SizedBox(height: 12),
+                  _WarningChip(
+                    icon: Icons.info_outline_rounded,
+                    text:
+                        'El proveedor puede cesar el servicio en cualquier momento sin previo aviso. Al terminar, los derechos y licencias otorgados también concluyen.',
                   ),
                 ],
               ),
 
               const SizedBox(height: 28),
 
-              // Sección: Tu consentimiento
-              _SectionTitle(title: 'Tu consentimiento'),
+              // Sección: Cambios en los términos
+              _SectionTitle(title: 'Cambios en estos términos'),
               const SizedBox(height: 12),
               _InfoCard(
                 children: [
                   Text(
-                    'Al usar la aplicación, consientes el procesamiento de tu información tal como se establece en esta Política de Privacidad, en su versión actual y en futuras modificaciones.',
+                    'Los Términos y Condiciones pueden actualizarse periódicamente. Se te aconseja revisar esta página regularmente. Los cambios entran en vigor en el momento de su publicación.',
                     style: AppTextStyles.bodyMedium
                         .copyWith(color: c.textSecondary, height: 1.5),
                   ),
@@ -256,16 +239,16 @@ class PrivacyScreen extends StatelessWidget {
 
               const SizedBox(height: 32),
 
-              // Botón de acción
+              // Botón de contacto
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: () => _launchEmail(context),
                   icon: const Icon(Icons.mail_outline_rounded),
-                  label: const Text('Solicitar mis datos o eliminar mi cuenta'),
+                  label: const Text('Contactar al proveedor'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.purple,
-                    side: BorderSide(color: AppColors.purple.withOpacity(0.3)),
+                    foregroundColor: AppColors.primary,
+                    side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -282,14 +265,14 @@ class PrivacyScreen extends StatelessWidget {
                   children: [
                     Text(
                       'Vigente desde: 22 de abril de 2026',
-                      style:
-                          AppTextStyles.labelSmall.copyWith(color: c.textHint),
+                      style: AppTextStyles.labelSmall
+                          .copyWith(color: context.kolekta.textHint),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'contacto@gamezdev.com.mx',
-                      style:
-                          AppTextStyles.labelSmall.copyWith(color: c.textHint),
+                      style: AppTextStyles.labelSmall
+                          .copyWith(color: context.kolekta.textHint),
                     ),
                   ],
                 ),
@@ -373,8 +356,8 @@ class _BulletItem extends StatelessWidget {
   }
 }
 
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.icon, required this.text});
+class _WarningChip extends StatelessWidget {
+  const _WarningChip({required this.icon, required this.text});
   final IconData icon;
   final String text;
 
@@ -384,19 +367,19 @@ class _InfoChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: c.purpleLight,
+        color: c.orangeLight,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.purple, size: 18),
+          Icon(icon, color: AppColors.orange, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
               style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.purple,
+                color: AppColors.orange,
                 height: 1.4,
               ),
             ),
