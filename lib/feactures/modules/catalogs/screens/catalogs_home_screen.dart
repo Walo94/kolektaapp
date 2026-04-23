@@ -24,7 +24,9 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _loadingMore = false;
-  bool _isActionLoading = false;
+
+  /// IDs de ventas que están siendo canceladas o eliminadas en este momento.
+  final Set<String> _actionLoadingSaleIds = {};
   bool _searchOpen = false;
 
   static const _tabs = [
@@ -341,6 +343,7 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
       ],
       itemBuilder: (sale) => _SaleCard(
         sale: sale,
+        isLoading: _actionLoadingSaleIds.contains(sale.id),
         onTap: () => _goToDetail(sale),
         onContextMenu: () => _showContextMenu(context, sale, token),
       ),
@@ -449,6 +452,7 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
             onRefresh: _load,
             onTapSale: _goToDetail,
             onContextMenu: (sale) => _showContextMenu(context, sale, token),
+            actionLoadingSaleIds: _actionLoadingSaleIds,
           ),
           // Pendientes
           _SaleList(
@@ -462,6 +466,7 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
             onRefresh: _load,
             onTapSale: _goToDetail,
             onContextMenu: (sale) => _showContextMenu(context, sale, token),
+            actionLoadingSaleIds: _actionLoadingSaleIds,
           ),
           // Pagadas
           _SaleList(
@@ -474,6 +479,7 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
             onRefresh: _load,
             onTapSale: _goToDetail,
             onContextMenu: (sale) => _showContextMenu(context, sale, token),
+            actionLoadingSaleIds: _actionLoadingSaleIds,
           ),
           // Canceladas
           _SaleList(
@@ -487,6 +493,7 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
             onRefresh: _load,
             onTapSale: _goToDetail,
             onContextMenu: (sale) => _showContextMenu(context, sale, token),
+            actionLoadingSaleIds: _actionLoadingSaleIds,
           ),
         ],
       ),
@@ -607,11 +614,11 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
       ),
     );
     if (confirmed != true || !mounted) return;
-    setState(() => _isActionLoading = true);
+    setState(() => _actionLoadingSaleIds.add(sale.id));
     final prov = context.read<CatalogProvider>();
     final ok = await prov.cancelSale(token, sale.id);
     if (!mounted) return;
-    setState(() => _isActionLoading = false);
+    setState(() => _actionLoadingSaleIds.remove(sale.id));
     _showSnack(ok ? 'Venta cancelada' : prov.errorMessage ?? 'Error', ok);
   }
 
@@ -640,11 +647,11 @@ class _CatalogsHomeScreenState extends State<CatalogsHomeScreen>
       ),
     );
     if (confirmed != true || !mounted) return;
-    setState(() => _isActionLoading = true);
+    setState(() => _actionLoadingSaleIds.add(sale.id));
     final prov = context.read<CatalogProvider>();
     final ok = await prov.deleteSale(token, sale.id);
     if (!mounted) return;
-    setState(() => _isActionLoading = false);
+    setState(() => _actionLoadingSaleIds.remove(sale.id));
     _showSnack(ok ? 'Venta eliminada' : prov.errorMessage ?? 'Error', ok);
   }
 
@@ -678,6 +685,7 @@ class _SaleList extends StatelessWidget {
     required this.onRefresh,
     required this.onTapSale,
     required this.onContextMenu,
+    required this.actionLoadingSaleIds,
   });
 
   final List<Sale> sales;
@@ -688,6 +696,7 @@ class _SaleList extends StatelessWidget {
   final Future<void> Function() onRefresh;
   final void Function(Sale) onTapSale;
   final void Function(Sale) onContextMenu;
+  final Set<String> actionLoadingSaleIds;
 
   @override
   Widget build(BuildContext context) {
@@ -739,6 +748,7 @@ class _SaleList extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 12),
               child: _SaleCard(
                 sale: sales[i],
+                isLoading: actionLoadingSaleIds.contains(sales[i].id),
                 onTap: () => onTapSale(sales[i]),
                 onContextMenu: () => onContextMenu(sales[i]),
               ),
@@ -762,11 +772,13 @@ class _SaleList extends StatelessWidget {
 class _SaleCard extends StatelessWidget {
   const _SaleCard({
     required this.sale,
+    required this.isLoading,
     required this.onTap,
     required this.onContextMenu,
   });
 
   final Sale sale;
+  final bool isLoading;
   final VoidCallback onTap;
   final VoidCallback onContextMenu;
 
@@ -774,108 +786,143 @@ class _SaleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.kolekta;
 
-    return GestureDetector(
-      onTap: onTap,
-      onLongPress: onContextMenu,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: c.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: c.border),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Stack(
+      children: [
+        GestureDetector(
+          onTap: isLoading ? null : onTap,
+          onLongPress: isLoading ? null : onContextMenu,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: c.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: c.border),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.04), blurRadius: 10),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: c.greenLight,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '#${sale.orderNum}',
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.green),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _SaleStatusBadge(status: sale.status),
-                const Spacer(),
-                // Indicador de número de productos
-                if (sale.items.isNotEmpty)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: c.surfaceVariant,
-                      borderRadius: BorderRadius.circular(8),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: c.greenLight,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '#${sale.orderNum}',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.green),
+                      ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.inventory_2_outlined,
-                            size: 11, color: c.textHint),
-                        const SizedBox(width: 3),
-                        Text(
-                          '${sale.items.length}',
-                          style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: c.textSecondary),
+                    const SizedBox(width: 8),
+                    _SaleStatusBadge(status: sale.status),
+                    const Spacer(),
+                    // Indicador de número de productos
+                    if (sale.items.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: c.surfaceVariant,
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      ],
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.inventory_2_outlined,
+                                size: 11, color: c.textHint),
+                            const SizedBox(width: 3),
+                            Text(
+                              '${sale.items.length}',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: c.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(sale.title,
+                    style: AppTextStyles.labelLarge
+                        .copyWith(color: c.textPrimary)),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Icon(Icons.person_outline_rounded,
+                        size: 13, color: c.textHint),
+                    const SizedBox(width: 4),
+                    Text(sale.clientName,
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: c.textSecondary)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Divider(height: 1, color: c.divider),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _AmountItem(
+                      label: 'Total',
+                      value: _fmt(sale.totalAmount),
+                      color: c.textPrimary,
                     ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(sale.title,
-                style: AppTextStyles.labelLarge.copyWith(color: c.textPrimary)),
-            const SizedBox(height: 2),
-            Row(
-              children: [
-                Icon(Icons.person_outline_rounded, size: 13, color: c.textHint),
-                const SizedBox(width: 4),
-                Text(sale.clientName,
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: c.textSecondary)),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Divider(height: 1, color: c.divider),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _AmountItem(
-                  label: 'Total',
-                  value: _fmt(sale.totalAmount),
-                  color: c.textPrimary,
-                ),
-                _AmountItem(
-                  label: 'Cobrado',
-                  value: _fmt(sale.collected),
-                  color: AppColors.green,
-                ),
-                _AmountItem(
-                  label: 'Saldo',
-                  value: _fmt(sale.balance),
-                  color: sale.balance > 0 ? AppColors.orange : AppColors.green,
+                    _AmountItem(
+                      label: 'Cobrado',
+                      value: _fmt(sale.collected),
+                      color: AppColors.green,
+                    ),
+                    _AmountItem(
+                      label: 'Saldo',
+                      value: _fmt(sale.balance),
+                      color:
+                          sale.balance > 0 ? AppColors.orange : AppColors.green,
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
-      ),
+        // ── Overlay de carga (mismo patrón que _BatchCard) ──────────────────
+        if (isLoading)
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                color: Colors.black.withOpacity(0.45),
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(color: AppColors.green),
+                      SizedBox(height: 10),
+                      Text(
+                        'Procesando...',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 

@@ -42,12 +42,11 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text('Registrar entrega',
-              style: AppTextStyles.headingMedium
-                  .copyWith(color: c.textPrimary)),
+              style:
+                  AppTextStyles.headingMedium.copyWith(color: c.textPrimary)),
           content: Text(
             '¿Confirmas la entrega del turno #${detail.assignedNumber} a ${detail.contactName}?\n\nMonto: \$${NumberFormat('#,##0', 'es').format(detail.payoutAmount)}',
-            style:
-                AppTextStyles.bodyMedium.copyWith(color: c.textSecondary),
+            style: AppTextStyles.bodyMedium.copyWith(color: c.textSecondary),
           ),
           actions: [
             TextButton(
@@ -64,8 +63,8 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                     borderRadius: BorderRadius.circular(10)),
               ),
               child: Text('Confirmar',
-                  style: AppTextStyles.buttonMedium
-                      .copyWith(color: Colors.white)),
+                  style:
+                      AppTextStyles.buttonMedium.copyWith(color: Colors.white)),
             ),
           ],
         );
@@ -86,12 +85,10 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(success
           ? '✅ Entrega registrada correctamente'
-          : context.read<BatchProvider>().errorMessage ??
-              'Error al registrar'),
+          : context.read<BatchProvider>().errorMessage ?? 'Error al registrar'),
       backgroundColor: success ? AppColors.success : AppColors.error,
       behavior: SnackBarBehavior.floating,
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.all(16),
     ));
   }
@@ -270,8 +267,7 @@ class _BatchDetailScreenState extends State<BatchDetailScreen> {
                             ),
                             _InfoItem(
                               label: 'Turno actual',
-                              value:
-                                  '${batch.currentTurn}/${batch.totalSlots}',
+                              value: '${batch.currentTurn}/${batch.totalSlots}',
                               color: AppColors.purple,
                             ),
                             _InfoItem(
@@ -464,9 +460,8 @@ class _DetailRow extends StatelessWidget {
                         isEmpty ? 'Lugar disponible' : detail.contactName,
                         style: AppTextStyles.labelLarge.copyWith(
                           color: isEmpty ? c.textHint : c.textPrimary,
-                          fontStyle: isEmpty
-                              ? FontStyle.italic
-                              : FontStyle.normal,
+                          fontStyle:
+                              isEmpty ? FontStyle.italic : FontStyle.normal,
                         ),
                         // maxLines + overflow evitan el desbordamiento
                         maxLines: 1,
@@ -506,8 +501,7 @@ class _DetailRow extends StatelessWidget {
                             .copyWith(color: c.textHint)),
                     if (detail.phone != null) ...[
                       const SizedBox(width: 8),
-                      Icon(Icons.phone_outlined,
-                          size: 12, color: c.textHint),
+                      Icon(Icons.phone_outlined, size: 12, color: c.textHint),
                       const SizedBox(width: 4),
                       Flexible(
                         child: Text(
@@ -527,9 +521,7 @@ class _DetailRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: isDelivered
-                        ? AppColors.success
-                        : AppColors.primary,
+                    color: isDelivered ? AppColors.success : AppColors.primary,
                   ),
                 ),
               ],
@@ -600,9 +592,7 @@ class _InfoItem extends StatelessWidget {
             style: AppTextStyles.labelSmall.copyWith(color: c.textHint)),
         Text(value,
             style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: color)),
+                fontSize: 18, fontWeight: FontWeight.w800, color: color)),
       ],
     );
   }

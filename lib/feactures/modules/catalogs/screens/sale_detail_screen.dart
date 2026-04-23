@@ -29,6 +29,12 @@ class SaleDetailScreen extends StatefulWidget {
 }
 
 class _SaleDetailScreenState extends State<SaleDetailScreen> {
+  /// IDs de pagos que están siendo eliminados en este momento.
+  final Set<String> _deletingPaymentIds = {};
+
+  /// IDs de pagos que están siendo cancelados en este momento.
+  final Set<String> _cancellingPaymentIds = {};
+
   @override
   void initState() {
     super.initState();
@@ -76,8 +82,7 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: c.surface,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Cancelar pago',
             style: AppTextStyles.labelLarge.copyWith(color: c.textPrimary)),
         content: Text(
@@ -97,6 +102,9 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
     );
     if (confirmed != true || !mounted) return;
 
+    // Activar indicador de carga para este pago
+    setState(() => _cancellingPaymentIds.add(payment.id));
+
     final token = context.read<AuthProvider>().token ?? '';
     final prov = context.read<CatalogProvider>();
     final ok = await prov.cancelPayment(
@@ -105,8 +113,11 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
       saleId: widget.saleId,
     );
     if (!mounted) return;
-    _showSnack(
-        ok ? 'Pago cancelado' : prov.errorMessage ?? 'Error',
+
+    // Desactivar indicador de carga
+    setState(() => _cancellingPaymentIds.remove(payment.id));
+
+    _showSnack(ok ? 'Pago cancelado' : prov.errorMessage ?? 'Error',
         isInfo: ok);
   }
 
@@ -118,8 +129,7 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: c.surface,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Eliminar pago',
             style: AppTextStyles.labelLarge.copyWith(color: c.textPrimary)),
         content: Text(
@@ -139,6 +149,9 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
     );
     if (confirmed != true || !mounted) return;
 
+    // Activar indicador de carga para este pago
+    setState(() => _deletingPaymentIds.add(payment.id));
+
     final token = context.read<AuthProvider>().token ?? '';
     final prov = context.read<CatalogProvider>();
     final ok = await prov.deletePayment(
@@ -146,9 +159,13 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
       paymentId: payment.id,
       saleId: widget.saleId,
     );
+
     if (!mounted) return;
-    _showSnack(
-        ok ? 'Pago eliminado' : prov.errorMessage ?? 'Error',
+
+    // Desactivar indicador de carga
+    setState(() => _deletingPaymentIds.remove(payment.id));
+
+    _showSnack(ok ? 'Pago eliminado' : prov.errorMessage ?? 'Error',
         isInfo: ok);
   }
 
@@ -182,8 +199,7 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
             ),
             title: Text(
               sale != null ? 'Pedido #${sale.orderNum}' : 'Detalle',
-              style: AppTextStyles.headingSmall
-                  .copyWith(color: c.textPrimary),
+              style: AppTextStyles.headingSmall.copyWith(color: c.textPrimary),
             ),
             centerTitle: true,
             actions: [
@@ -237,9 +253,8 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
                           else
                             _ItemsCard(
                               items: sale.items,
-                              products: context
-                                  .read<ProductProvider>()
-                                  .products,
+                              products:
+                                  context.read<ProductProvider>().products,
                             ),
 
                           const SizedBox(height: 20),
@@ -249,8 +264,7 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
                             ElevatedButton.icon(
                               onPressed: () async {
                                 final result =
-                                    await Navigator.of(context)
-                                        .push<bool>(
+                                    await Navigator.of(context).push<bool>(
                                   MaterialPageRoute(
                                     builder: (_) =>
                                         CreatePaymentScreen(sale: sale),
@@ -263,11 +277,9 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.green,
                                 foregroundColor: Colors.white,
-                                minimumSize:
-                                    const Size(double.infinity, 48),
+                                minimumSize: const Size(double.infinity, 48),
                                 shape: RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(12)),
+                                    borderRadius: BorderRadius.circular(12)),
                                 elevation: 0,
                               ),
                             ),
@@ -285,17 +297,18 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
                           else
                             ...sale.payments.map(
                               (p) => Padding(
-                                padding:
-                                    const EdgeInsets.only(bottom: 10),
+                                padding: const EdgeInsets.only(bottom: 10),
                                 child: _PaymentTile(
                                   payment: p,
+                                  isDeleting:
+                                      _deletingPaymentIds.contains(p.id),
+                                  isCancelling:
+                                      _cancellingPaymentIds.contains(p.id),
                                   onShare: () => _shareReceipt(p),
-                                  onCancel: p.status ==
-                                          PaymentStatus.paid
+                                  onCancel: p.status == PaymentStatus.paid
                                       ? () => _confirmCancelPayment(p)
                                       : null,
-                                  onDelete: () =>
-                                      _confirmDeletePayment(p),
+                                  onDelete: () => _confirmDeletePayment(p),
                                 ),
                               ),
                             ),
@@ -346,7 +359,8 @@ class _SaleHeader extends StatelessWidget {
               children: [
                 Text(
                   sale.title,
-                  style: AppTextStyles.labelLarge.copyWith(color: c.textPrimary),
+                  style:
+                      AppTextStyles.labelLarge.copyWith(color: c.textPrimary),
                 ),
                 const SizedBox(height: 4),
                 _SaleStatusChip(status: sale.status),
@@ -390,9 +404,7 @@ class _SaleStatusChip extends StatelessWidget {
           BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
       child: Text(status.label,
           style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: textColor)),
+              fontSize: 10, fontWeight: FontWeight.w700, color: textColor)),
     );
   }
 }
@@ -485,9 +497,7 @@ class _ProgressStat extends StatelessWidget {
             style: AppTextStyles.labelSmall.copyWith(color: c.textHint)),
         Text(value,
             style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: color)),
+                fontSize: 14, fontWeight: FontWeight.w700, color: color)),
       ],
     );
   }
@@ -564,11 +574,10 @@ class _InfoRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label,
-                  style:
-                      AppTextStyles.labelSmall.copyWith(color: c.textHint)),
+                  style: AppTextStyles.labelSmall.copyWith(color: c.textHint)),
               Text(value,
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: c.textPrimary)),
+                  style:
+                      AppTextStyles.bodySmall.copyWith(color: c.textPrimary)),
             ],
           ),
         ),
@@ -595,8 +604,8 @@ class _EmptyItems extends StatelessWidget {
           Icon(Icons.inventory_2_outlined, size: 40, color: c.textHint),
           const SizedBox(height: 8),
           Text('Sin productos registrados',
-              style: AppTextStyles.labelMedium
-                  .copyWith(color: c.textSecondary)),
+              style:
+                  AppTextStyles.labelMedium.copyWith(color: c.textSecondary)),
         ],
       ),
     );
@@ -646,8 +655,8 @@ class _ItemsCard extends StatelessWidget {
               children: [
                 Text(
                   'Total (${items.length} ${items.length == 1 ? 'producto' : 'productos'})',
-                  style:
-                      AppTextStyles.labelMedium.copyWith(color: c.textSecondary),
+                  style: AppTextStyles.labelMedium
+                      .copyWith(color: c.textSecondary),
                 ),
                 Text(
                   _fmt(total),
@@ -670,6 +679,7 @@ class _ItemsCard extends StatelessWidget {
 class _ItemTile extends StatelessWidget {
   const _ItemTile({required this.item, this.liveImageUrl});
   final SaleItemSnapshot item;
+
   /// URL de la imagen obtenida del producto vivo (null si fue eliminado)
   final String? liveImageUrl;
 
@@ -812,8 +822,8 @@ class _EmptyPayments extends StatelessWidget {
           Icon(Icons.receipt_long_outlined, size: 40, color: c.textHint),
           const SizedBox(height: 8),
           Text('Sin pagos registrados',
-              style: AppTextStyles.labelMedium
-                  .copyWith(color: c.textSecondary)),
+              style:
+                  AppTextStyles.labelMedium.copyWith(color: c.textSecondary)),
         ],
       ),
     );
@@ -823,12 +833,16 @@ class _EmptyPayments extends StatelessWidget {
 class _PaymentTile extends StatelessWidget {
   const _PaymentTile({
     required this.payment,
+    required this.isDeleting,
+    required this.isCancelling,
     required this.onShare,
     this.onCancel,
     required this.onDelete,
   });
 
   final SalePayment payment;
+  final bool isDeleting;
+  final bool isCancelling;
   final VoidCallback onShare;
   final VoidCallback? onCancel;
   final VoidCallback onDelete;
@@ -837,95 +851,137 @@ class _PaymentTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.kolekta;
     final isCancelled = payment.status == PaymentStatus.cancelled;
+    // Cualquier operación en curso bloquea la tile
+    final isBusy = isDeleting || isCancelling;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isCancelled ? c.divider : c.border,
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 200),
+      opacity: isBusy ? 0.6 : 1.0,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isDeleting
+                ? AppColors.error.withOpacity(0.4)
+                : isCancelling
+                    ? AppColors.orange.withOpacity(0.4)
+                    : isCancelled
+                        ? c.divider
+                        : c.border,
+          ),
+          boxShadow: [
+            if (!isCancelled)
+              BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8),
+          ],
         ),
-        boxShadow: [
-          if (!isCancelled)
-            BoxShadow(
-                color: Colors.black.withOpacity(0.03), blurRadius: 8),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: isCancelled ? c.divider : c.greenLight,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              isCancelled
-                  ? Icons.cancel_outlined
-                  : Icons.check_circle_outline_rounded,
-              color: isCancelled ? c.textHint : AppColors.green,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // FIX 4: formato de moneda en historial de pagos
-                Text(
-                  _fmt(payment.amount),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: isCancelled ? c.textHint : AppColors.green,
-                    decoration: isCancelled
-                        ? TextDecoration.lineThrough
-                        : null,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  DateFormat('dd/MM/yyyy HH:mm').format(payment.date),
-                  style: AppTextStyles.labelSmall.copyWith(color: c.textHint),
-                ),
-                if (isCancelled)
-                  Text('Cancelado',
-                      style: TextStyle(
-                          fontSize: 10,
-                          color: c.textHint,
-                          fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!isCancelled)
-                _ActionIcon(
-                  icon: Icons.share_rounded,
-                  color: AppColors.primary,
-                  onTap: onShare,
-                  tooltip: 'Compartir comprobante',
-                ),
-              if (onCancel != null)
-                _ActionIcon(
-                  icon: Icons.block_rounded,
-                  color: AppColors.orange,
-                  onTap: onCancel!,
-                  tooltip: 'Cancelar pago',
-                ),
-              _ActionIcon(
-                icon: Icons.delete_outline_rounded,
-                color: AppColors.error,
-                onTap: onDelete,
-                tooltip: 'Eliminar pago',
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: isDeleting
+                    ? AppColors.error.withOpacity(0.1)
+                    : isCancelling
+                        ? AppColors.orange.withOpacity(0.1)
+                        : isCancelled
+                            ? c.divider
+                            : c.greenLight,
+                borderRadius: BorderRadius.circular(12),
               ),
-            ],
-          ),
-        ],
+              child: isBusy
+                  ? Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: isDeleting ? AppColors.error : AppColors.orange,
+                      ),
+                    )
+                  : Icon(
+                      isCancelled
+                          ? Icons.cancel_outlined
+                          : Icons.check_circle_outline_rounded,
+                      color: isCancelled ? c.textHint : AppColors.green,
+                      size: 20,
+                    ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _fmt(payment.amount),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: isDeleting
+                          ? AppColors.error
+                          : isCancelling
+                              ? AppColors.orange
+                              : isCancelled
+                                  ? c.textHint
+                                  : AppColors.green,
+                      decoration:
+                          isCancelled ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isDeleting
+                        ? 'Eliminando…'
+                        : isCancelling
+                            ? 'Cancelando…'
+                            : DateFormat('dd/MM/yyyy HH:mm')
+                                .format(payment.date),
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: isDeleting
+                          ? AppColors.error
+                          : isCancelling
+                              ? AppColors.orange
+                              : c.textHint,
+                    ),
+                  ),
+                  if (isCancelled && !isBusy)
+                    Text('Cancelado',
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: c.textHint,
+                            fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+            // Ocultar acciones mientras hay una operación en curso
+            if (!isBusy)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!isCancelled)
+                    _ActionIcon(
+                      icon: Icons.share_rounded,
+                      color: AppColors.primary,
+                      onTap: onShare,
+                      tooltip: 'Compartir comprobante',
+                    ),
+                  if (onCancel != null)
+                    _ActionIcon(
+                      icon: Icons.block_rounded,
+                      color: AppColors.orange,
+                      onTap: onCancel!,
+                      tooltip: 'Cancelar pago',
+                    ),
+                  _ActionIcon(
+                    icon: Icons.delete_outline_rounded,
+                    color: AppColors.error,
+                    onTap: onDelete,
+                    tooltip: 'Eliminar pago',
+                  ),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -38,6 +38,9 @@ class _GiveawayDetailScreenState extends State<GiveawayDetailScreen>
   List<GiveawayTicket>? _pendingWinners;
   late AnimationController _lottieCtrl;
 
+  /// IDs de boletos que están siendo liberados en este momento.
+  final Set<String> _releasingTicketIds = {};
+
   static final String _kBaseShareUrl =
       '${dotenv.env['WEB_URL']}/shared/giveaway';
 
@@ -342,7 +345,8 @@ class _GiveawayDetailScreenState extends State<GiveawayDetailScreen>
                               return;
                             }
                             if (nameCtrl.text.trim().isEmpty) {
-                              _showSnack('Ingresa el nombre del cliente', false);
+                              _showSnack(
+                                  'Ingresa el nombre del cliente', false);
                               return;
                             }
                             setSheetState(() => isAssigning = true);
@@ -717,12 +721,22 @@ class _GiveawayDetailScreenState extends State<GiveawayDetailScreen>
       ),
     );
     if (confirmed != true || !mounted) return;
+
+    // Activar indicador de carga para este boleto
+    setState(() => _releasingTicketIds.add(ticket.id));
+
     final prov = context.read<GiveawayProvider>();
     final ok = await prov.cancelTicket(
       token: token,
       giveawayId: widget.giveawayId,
       ticketId: ticket.id,
     );
+
+    if (!mounted) return;
+
+    // Desactivar indicador de carga
+    setState(() => _releasingTicketIds.remove(ticket.id));
+
     _showSnack(ok ? 'Boleto liberado' : prov.errorMessage ?? 'Error', ok);
   }
 
@@ -1023,6 +1037,7 @@ class _GiveawayDetailScreenState extends State<GiveawayDetailScreen>
                                       onCancelTicket: _confirmCancelTicket,
                                       onShareTicket: (ticket) =>
                                           _shareTicketReceipt(ticket),
+                                      releasingTicketIds: _releasingTicketIds,
                                     );
                                   }
                                   return _WinnersList(giveaway: g);
@@ -1536,6 +1551,7 @@ class _TicketsGrid extends StatelessWidget {
     required this.onMarkPaid,
     required this.onCancelTicket,
     required this.onShareTicket,
+    required this.releasingTicketIds,
   });
 
   final Giveaway giveaway;
@@ -1544,6 +1560,7 @@ class _TicketsGrid extends StatelessWidget {
   final Future<void> Function(GiveawayTicket, String) onMarkPaid;
   final Future<void> Function(GiveawayTicket, String) onCancelTicket;
   final Future<void> Function(GiveawayTicket) onShareTicket;
+  final Set<String> releasingTicketIds;
 
   @override
   Widget build(BuildContext context) {
@@ -1569,6 +1586,7 @@ class _TicketsGrid extends StatelessWidget {
           onMarkPaid: onMarkPaid,
           onCancelTicket: onCancelTicket,
           onShareTicket: onShareTicket,
+          isReleasing: releasingTicketIds.contains(t.id),
         );
       },
     );
@@ -1583,6 +1601,7 @@ class _TicketCell extends StatelessWidget {
     required this.onMarkPaid,
     required this.onCancelTicket,
     required this.onShareTicket,
+    required this.isReleasing,
   });
 
   final GiveawayTicket ticket;
@@ -1591,6 +1610,7 @@ class _TicketCell extends StatelessWidget {
   final Future<void> Function(GiveawayTicket, String) onMarkPaid;
   final Future<void> Function(GiveawayTicket, String) onCancelTicket;
   final Future<void> Function(GiveawayTicket) onShareTicket;
+  final bool isReleasing;
 
   Color _bgColor(BuildContext ctx) {
     final c = ctx.kolekta;
@@ -1631,38 +1651,56 @@ class _TicketCell extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        if (!isOpen) return;
+        if (!isOpen || isReleasing) return;
         if (ticket.status == TicketStatus.free ||
             ticket.status == TicketStatus.cancelled) {
           return;
         }
         _showTicketMenu(context);
       },
-      child: Container(
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(8),
-          border: ticket.status == TicketStatus.winner
-              ? Border.all(color: AppColors.orange, width: 2)
-              : null,
-        ),
-        child: Stack(
-          children: [
-            Center(
-              child: Text(
-                '${ticket.ticketNumber}',
-                style: TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w700, color: text),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
+        opacity: isReleasing ? 0.6 : 1.0,
+        child: Container(
+          decoration: BoxDecoration(
+            color: isReleasing ? AppColors.error.withOpacity(0.08) : bg,
+            borderRadius: BorderRadius.circular(8),
+            border: isReleasing
+                ? Border.all(
+                    color: AppColors.error.withOpacity(0.4), width: 1.5)
+                : ticket.status == TicketStatus.winner
+                    ? Border.all(color: AppColors.orange, width: 2)
+                    : null,
+          ),
+          child: Stack(
+            children: [
+              Center(
+                child: isReleasing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.error,
+                        ),
+                      )
+                    : Text(
+                        '${ticket.ticketNumber}',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: text),
+                      ),
               ),
-            ),
-            if (ticket.status == TicketStatus.winner)
-              const Positioned(
-                top: 2,
-                right: 2,
-                child:
-                    Icon(Icons.star_rounded, color: AppColors.orange, size: 10),
-              ),
-          ],
+              if (ticket.status == TicketStatus.winner && !isReleasing)
+                const Positioned(
+                  top: 2,
+                  right: 2,
+                  child: Icon(Icons.star_rounded,
+                      color: AppColors.orange, size: 10),
+                ),
+            ],
+          ),
         ),
       ),
     );

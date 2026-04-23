@@ -153,6 +153,7 @@ class _GiveawaysHomeScreenState extends State<GiveawaysHomeScreen>
                     _showSnack(
                         ok ? 'Rifa cancelada' : prov.errorMessage ?? 'Error',
                         ok);
+                    if (ok && mounted) await _load();
                   },
                 ),
               ],
@@ -178,6 +179,7 @@ class _GiveawaysHomeScreenState extends State<GiveawaysHomeScreen>
                   if (mounted) setState(() => _isActionLoading = false);
                   _showSnack(
                       ok ? 'Rifa eliminada' : prov.errorMessage ?? 'Error', ok);
+                  if (ok && mounted) await _load();
                 },
               ),
             ],
@@ -238,189 +240,222 @@ class _GiveawaysHomeScreenState extends State<GiveawaysHomeScreen>
 
     return Scaffold(
       backgroundColor: c.background,
-      body: KolektaSearchBar(
-        isOpen: _searchOpen,
-        hintText: 'Buscar rifa o participante…',
-        onSearch: _onSearch,
-        onClose: _closeSearch,
-        child: Column(
-          children: [
-            SizedBox(height: safeArea.top + 16),
+      body: Stack(
+        children: [
+          KolektaSearchBar(
+            isOpen: _searchOpen,
+            hintText: 'Buscar rifa o participante…',
+            onSearch: _onSearch,
+            onClose: _closeSearch,
+            child: Column(
+              children: [
+                SizedBox(height: safeArea.top + 16),
 
-            // ── Header ──────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                // ── Header ──────────────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Rifas',
-                          style: AppTextStyles.displayMedium
-                              .copyWith(color: c.textPrimary)),
-                      Text('Gestiona sorteos y ganadores',
-                          style: AppTextStyles.bodySmall
-                              .copyWith(color: c.textSecondary)),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Rifas',
+                              style: AppTextStyles.displayMedium
+                                  .copyWith(color: c.textPrimary)),
+                          Text('Gestiona sorteos y ganadores',
+                              style: AppTextStyles.bodySmall
+                                  .copyWith(color: c.textSecondary)),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          // ── Botón buscar ──────────────────────
+                          GestureDetector(
+                            onTap: _openSearch,
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                color: c.surface,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: c.border),
+                              ),
+                              child: Icon(Icons.search_rounded,
+                                  size: 18, color: c.textSecondary),
+                            ),
+                          ),
+                          // ── Botón crear ───────────────────────
+                          FloatingActionButton(
+                            heroTag: 'giveaway_fab',
+                            onPressed: _goToCreate,
+                            backgroundColor: AppColors.pink,
+                            mini: true,
+                            elevation: 4,
+                            child: const Icon(Icons.add_rounded,
+                                color: Colors.white),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-                  Row(
-                    children: [
-                      // ── Botón buscar ──────────────────────
-                      GestureDetector(
-                        onTap: _openSearch,
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          margin: const EdgeInsets.only(right: 8),
-                          decoration: BoxDecoration(
-                            color: c.surface,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: c.border),
+                ),
+
+                const SizedBox(height: 16),
+
+                // ── Tarjeta resumen (solo cuando NO está en búsqueda) ──────
+                if (!_searchOpen)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFEC4899), Color(0xFFF472B6)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.pink.withOpacity(0.4),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
                           ),
-                          child: Icon(Icons.search_rounded,
-                              size: 18, color: c.textSecondary),
+                        ],
+                      ),
+                      child: Consumer<GiveawayProvider>(
+                        builder: (context, prov, _) => Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Potencial total',
+                                      style: AppTextStyles.labelSmall
+                                          .copyWith(color: Colors.white70)),
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      _formatMoney(_potentialTotal(prov)),
+                                      style: AppTextStyles.displayMedium
+                                          .copyWith(
+                                              color: Colors.white,
+                                              fontSize: 28),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${prov.giveaways.where((g) => g.status == GiveawayStatus.open).length} rifa(s) abierta(s)',
+                                    style: AppTextStyles.labelSmall
+                                        .copyWith(color: Colors.white70),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Container(
+                              width: 70,
+                              height: 70,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    '${_totalSoldTickets(prov)}',
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w800),
+                                  ),
+                                  const Text(
+                                    'Vendidos',
+                                    style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      // ── Botón crear ───────────────────────
-                      FloatingActionButton(
-                        heroTag: 'giveaway_fab',
-                        onPressed: _goToCreate,
-                        backgroundColor: AppColors.pink,
-                        mini: true,
-                        elevation: 4,
-                        child:
-                            const Icon(Icons.add_rounded, color: Colors.white),
+                    ),
+                  ),
+
+                const SizedBox(height: 16),
+
+                // ── Tabs (se ocultan mientras busca) ───────────────────────
+                if (!_searchOpen)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: c.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: c.border),
+                      ),
+                      child: TabBar(
+                        controller: _tabController,
+                        indicator: BoxDecoration(
+                          color: AppColors.pink,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        indicatorPadding: const EdgeInsets.all(3),
+                        labelColor: Colors.white,
+                        unselectedLabelColor: c.textSecondary,
+                        labelStyle: const TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w700),
+                        unselectedLabelStyle: const TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w500),
+                        dividerColor: Colors.transparent,
+                        tabs: _tabs.map((t) => Tab(text: t.label)).toList(),
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 12),
+
+                // ── Contenido: búsqueda OR lista normal ────────────────────
+                if (_searchOpen)
+                  _buildSearchContent()
+                else
+                  _buildNormalContent(),
+              ],
+            ),
+          ),
+          // ── Overlay de carga ──────────────────────────────────────────────
+          if (_isActionLoading)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.45),
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(color: AppColors.pink),
+                      SizedBox(height: 10),
+                      Text(
+                        'Procesando...',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
-
-            const SizedBox(height: 16),
-
-            // ── Tarjeta resumen (solo cuando NO está en búsqueda) ──────
-            if (!_searchOpen)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFEC4899), Color(0xFFF472B6)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.pink.withOpacity(0.4),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Consumer<GiveawayProvider>(
-                    builder: (context, prov, _) => Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Potencial total',
-                                  style: AppTextStyles.labelSmall
-                                      .copyWith(color: Colors.white70)),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  _formatMoney(_potentialTotal(prov)),
-                                  style: AppTextStyles.displayMedium.copyWith(
-                                      color: Colors.white, fontSize: 28),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${prov.giveaways.where((g) => g.status == GiveawayStatus.open).length} rifa(s) abierta(s)',
-                                style: AppTextStyles.labelSmall
-                                    .copyWith(color: Colors.white70),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Container(
-                          width: 70,
-                          height: 70,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                '${_totalSoldTickets(prov)}',
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w800),
-                              ),
-                              const Text(
-                                'Vendidos',
-                                style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w600),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-            const SizedBox(height: 16),
-
-            // ── Tabs (se ocultan mientras busca) ───────────────────────
-            if (!_searchOpen)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: c.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: c.border),
-                  ),
-                  child: TabBar(
-                    controller: _tabController,
-                    indicator: BoxDecoration(
-                      color: AppColors.pink,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    indicatorPadding: const EdgeInsets.all(3),
-                    labelColor: Colors.white,
-                    unselectedLabelColor: c.textSecondary,
-                    labelStyle: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w700),
-                    unselectedLabelStyle: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w500),
-                    dividerColor: Colors.transparent,
-                    tabs: _tabs.map((t) => Tab(text: t.label)).toList(),
-                  ),
-                ),
-              ),
-
-            const SizedBox(height: 12),
-
-            // ── Contenido: búsqueda OR lista normal ────────────────────
-            if (_searchOpen) _buildSearchContent() else _buildNormalContent(),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -466,8 +501,7 @@ class _GiveawaysHomeScreenState extends State<GiveawaysHomeScreen>
   // ── Vista normal con tabs ──────────────────────────────────────
   Widget _buildNormalContent() {
     final prov = context.watch<GiveawayProvider>();
-    final token =
-        context.read<AuthProvider>().token ?? ''; // ← Agrega esta línea
+    final token = context.read<AuthProvider>().token ?? '';
 
     return Expanded(
       child: prov.loading && prov.giveaways.isEmpty
@@ -495,8 +529,8 @@ class _GiveawaysHomeScreenState extends State<GiveawaysHomeScreen>
                               child: _GiveawayCard(
                                 giveaway: g,
                                 onTap: () => _goToDetail(g),
-                                onLongPress: () => _showContextMenu(
-                                    context, g, token), // ← Usa token
+                                onLongPress: () =>
+                                    _showContextMenu(context, g, token),
                               ),
                             );
                           }

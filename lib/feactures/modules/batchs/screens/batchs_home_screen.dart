@@ -256,8 +256,7 @@ class _BatchsHomeScreenState extends State<BatchsHomeScreen>
         canEdit: batch.status == BatchStatus.active,
         onRefresh: _load,
       ),
-      onLoadMore: (groupIndex) =>
-          prov.searchLoadMore(token, groupIndex),
+      onLoadMore: (groupIndex) => prov.searchLoadMore(token, groupIndex),
       emptyMessage: 'Sin resultados para',
     );
   }
@@ -267,8 +266,7 @@ class _BatchsHomeScreenState extends State<BatchsHomeScreen>
     return Expanded(
       child: batchProvider.loading && batchProvider.batchs.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : batchProvider.errorMessage != null &&
-                  batchProvider.batchs.isEmpty
+          : batchProvider.errorMessage != null && batchProvider.batchs.isEmpty
               ? Center(
                   child: Padding(
                     padding: const EdgeInsets.all(32),
@@ -431,7 +429,7 @@ class _BatchCard extends StatefulWidget {
 }
 
 class _BatchCardState extends State<_BatchCard> {
-  final bool _isActionLoading = false;
+  bool _isActionLoading = false;
 
   Batch get batch => widget.batch;
   bool get canEdit => widget.canEdit;
@@ -468,8 +466,7 @@ class _BatchCardState extends State<_BatchCard> {
       await Share.share(text, subject: 'Tanda "${batch.name}" — Kolekta');
     } catch (_) {
       messenger.showSnackBar(
-        const SnackBar(
-            content: Text('No se pudo abrir el menú de compartir')),
+        const SnackBar(content: Text('No se pudo abrir el menú de compartir')),
       );
     }
   }
@@ -501,8 +498,8 @@ class _BatchCardState extends State<_BatchCard> {
                 const SizedBox(height: 16),
                 Text(
                   batch.name,
-                  style: AppTextStyles.headingSmall
-                      .copyWith(color: c.textPrimary),
+                  style:
+                      AppTextStyles.headingSmall.copyWith(color: c.textPrimary),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -511,8 +508,8 @@ class _BatchCardState extends State<_BatchCard> {
                   _isEditable
                       ? 'Sin entregas registradas — puede editarse'
                       : 'Turno ${batch.currentTurn}/${batch.totalSlots} — solo lectura',
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: c.textSecondary),
+                  style:
+                      AppTextStyles.bodySmall.copyWith(color: c.textSecondary),
                 ),
                 const SizedBox(height: 16),
                 _SheetOption(
@@ -558,6 +555,19 @@ class _BatchCardState extends State<_BatchCard> {
                       _confirmCancel(context);
                     },
                   ),
+                if (batch.status == BatchStatus.cancelled ||
+                    batch.status == BatchStatus.finished)
+                  _SheetOption(
+                    icon: Icons.delete_outline_rounded,
+                    iconBg: AppColors.error.withOpacity(0.1),
+                    iconColor: AppColors.error,
+                    label: 'Eliminar tanda',
+                    labelColor: AppColors.error,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _confirmDelete(context);
+                    },
+                  ),
               ],
             ),
           ),
@@ -570,8 +580,116 @@ class _BatchCardState extends State<_BatchCard> {
     // Mantén tu implementación original aquí
   }
 
-  void _confirmCancel(BuildContext context) {
-    // Mantén tu implementación original aquí
+  Future<void> _confirmCancel(BuildContext context) async {
+    final c = context.kolekta;
+    final token = context.read<AuthProvider>().token ?? '';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: c.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Cancelar tanda',
+            style: AppTextStyles.labelLarge.copyWith(color: c.textPrimary)),
+        content: Text(
+          '¿Cancelar la tanda "${batch.name}"? Esta acción no se puede deshacer.',
+          style: AppTextStyles.bodySmall.copyWith(color: c.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('No', style: TextStyle(color: c.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Cancelar tanda',
+                style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isActionLoading = true);
+    try {
+      await BatchService.cancelBatch(token: token, batchId: batch.id);
+      if (!mounted) return;
+      setState(() => _isActionLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Tanda cancelada'),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ));
+      await onRefresh();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isActionLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(e.toString().replaceFirst('Exception: ', '')),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ));
+    }
+  }
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final c = context.kolekta;
+    final token = context.read<AuthProvider>().token ?? '';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: c.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Eliminar tanda',
+            style: AppTextStyles.labelLarge.copyWith(color: c.textPrimary)),
+        content: Text(
+          '¿Eliminar permanentemente la tanda "${batch.name}"? Esta acción no se puede deshacer.',
+          style: AppTextStyles.bodySmall.copyWith(color: c.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('No', style: TextStyle(color: c.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar',
+                style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isActionLoading = true);
+    try {
+      await BatchService.deleteBatch(token: token, batchId: batch.id);
+      if (!mounted) return;
+      setState(() => _isActionLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Tanda eliminada'),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ));
+      await onRefresh();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isActionLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(e.toString().replaceFirst('Exception: ', '')),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ));
+    }
   }
 
   @override
