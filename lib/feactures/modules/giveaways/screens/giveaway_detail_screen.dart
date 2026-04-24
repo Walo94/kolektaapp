@@ -41,6 +41,9 @@ class _GiveawayDetailScreenState extends State<GiveawayDetailScreen>
   /// IDs de boletos que están siendo liberados en este momento.
   final Set<String> _releasingTicketIds = {};
 
+  /// IDs de boletos que están siendo marcados como pagados en este momento.
+  final Set<String> _payingTicketIds = {};
+
   static final String _kBaseShareUrl =
       '${dotenv.env['WEB_URL']}/shared/giveaway';
 
@@ -679,7 +682,12 @@ class _GiveawayDetailScreenState extends State<GiveawayDetailScreen>
     ));
   }
 
+  // ── Marcar como pagado — con indicador de carga en la celda ───────────────
+
   Future<void> _markAsPaid(GiveawayTicket ticket, String token) async {
+    // Activar indicador de carga para este boleto
+    setState(() => _payingTicketIds.add(ticket.id));
+
     final prov = context.read<GiveawayProvider>();
     final ok = await prov.updateTicket(
       token: token,
@@ -687,12 +695,20 @@ class _GiveawayDetailScreenState extends State<GiveawayDetailScreen>
       ticketId: ticket.id,
       paid: true,
     );
+
+    if (!mounted) return;
+
+    // Desactivar indicador de carga
+    setState(() => _payingTicketIds.remove(ticket.id));
+
     _showSnack(
         ok
             ? 'Boleto #${ticket.ticketNumber} marcado como pagado'
             : prov.errorMessage ?? 'Error',
         ok);
   }
+
+  // ── Liberar boleto ────────────────────────────────────────────────────────
 
   Future<void> _confirmCancelTicket(GiveawayTicket ticket, String token) async {
     final c = context.kolekta;
@@ -757,7 +773,7 @@ class _GiveawayDetailScreenState extends State<GiveawayDetailScreen>
               width: 260,
               height: 260,
               decoration: BoxDecoration(
-                color: Colors.transparent, // Fondo transparente
+                color: Colors.transparent,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: isSpinning
@@ -768,7 +784,6 @@ class _GiveawayDetailScreenState extends State<GiveawayDetailScreen>
                         _lottieCtrl.duration = comp.duration;
                         _lottieCtrl.repeat();
                       },
-                      // Forzar fondo transparente
                       fit: BoxFit.contain,
                     )
                   : Lottie.asset(
@@ -1038,6 +1053,7 @@ class _GiveawayDetailScreenState extends State<GiveawayDetailScreen>
                                       onShareTicket: (ticket) =>
                                           _shareTicketReceipt(ticket),
                                       releasingTicketIds: _releasingTicketIds,
+                                      payingTicketIds: _payingTicketIds,
                                     );
                                   }
                                   return _WinnersList(giveaway: g);
@@ -1552,6 +1568,7 @@ class _TicketsGrid extends StatelessWidget {
     required this.onCancelTicket,
     required this.onShareTicket,
     required this.releasingTicketIds,
+    required this.payingTicketIds,
   });
 
   final Giveaway giveaway;
@@ -1561,6 +1578,7 @@ class _TicketsGrid extends StatelessWidget {
   final Future<void> Function(GiveawayTicket, String) onCancelTicket;
   final Future<void> Function(GiveawayTicket) onShareTicket;
   final Set<String> releasingTicketIds;
+  final Set<String> payingTicketIds;
 
   @override
   Widget build(BuildContext context) {
@@ -1587,6 +1605,7 @@ class _TicketsGrid extends StatelessWidget {
           onCancelTicket: onCancelTicket,
           onShareTicket: onShareTicket,
           isReleasing: releasingTicketIds.contains(t.id),
+          isPaying: payingTicketIds.contains(t.id),
         );
       },
     );
@@ -1602,6 +1621,7 @@ class _TicketCell extends StatelessWidget {
     required this.onCancelTicket,
     required this.onShareTicket,
     required this.isReleasing,
+    required this.isPaying,
   });
 
   final GiveawayTicket ticket;
@@ -1611,9 +1631,14 @@ class _TicketCell extends StatelessWidget {
   final Future<void> Function(GiveawayTicket, String) onCancelTicket;
   final Future<void> Function(GiveawayTicket) onShareTicket;
   final bool isReleasing;
+  final bool isPaying;
+
+  bool get _isBusy => isReleasing || isPaying;
 
   Color _bgColor(BuildContext ctx) {
     final c = ctx.kolekta;
+    if (isPaying) return AppColors.greenLight.withOpacity(0.5);
+    if (isReleasing) return AppColors.error.withOpacity(0.08);
     switch (ticket.status) {
       case TicketStatus.free:
         return c.divider;
@@ -1651,7 +1676,7 @@ class _TicketCell extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        if (!isOpen || isReleasing) return;
+        if (!isOpen || _isBusy) return;
         if (ticket.status == TicketStatus.free ||
             ticket.status == TicketStatus.cancelled) {
           return;
@@ -1660,28 +1685,31 @@ class _TicketCell extends StatelessWidget {
       },
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 200),
-        opacity: isReleasing ? 0.6 : 1.0,
+        opacity: _isBusy ? 0.6 : 1.0,
         child: Container(
           decoration: BoxDecoration(
-            color: isReleasing ? AppColors.error.withOpacity(0.08) : bg,
+            color: bg,
             borderRadius: BorderRadius.circular(8),
             border: isReleasing
                 ? Border.all(
                     color: AppColors.error.withOpacity(0.4), width: 1.5)
-                : ticket.status == TicketStatus.winner
-                    ? Border.all(color: AppColors.orange, width: 2)
-                    : null,
+                : isPaying
+                    ? Border.all(
+                        color: AppColors.success.withOpacity(0.6), width: 1.5)
+                    : ticket.status == TicketStatus.winner
+                        ? Border.all(color: AppColors.orange, width: 2)
+                        : null,
           ),
           child: Stack(
             children: [
               Center(
-                child: isReleasing
-                    ? const SizedBox(
+                child: _isBusy
+                    ? SizedBox(
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: AppColors.error,
+                          color: isPaying ? AppColors.success : AppColors.error,
                         ),
                       )
                     : Text(
@@ -1692,7 +1720,7 @@ class _TicketCell extends StatelessWidget {
                             color: text),
                       ),
               ),
-              if (ticket.status == TicketStatus.winner && !isReleasing)
+              if (ticket.status == TicketStatus.winner && !_isBusy)
                 const Positioned(
                   top: 2,
                   right: 2,
@@ -1860,7 +1888,6 @@ class _WinnersList extends StatelessWidget {
 
     return Column(
       children: winners.map((w) {
-        // Buscar descripción del premio correspondiente
         final prize = giveaway.prizes
             .where((p) => p.prizePlace == w.prizePlace)
             .firstOrNull;
@@ -1940,8 +1967,6 @@ class _WinnersList extends StatelessWidget {
                     ),
                   ],
                 ),
-
-                // Descripción del premio ganado
                 if (prize != null) ...[
                   const SizedBox(height: 8),
                   Container(

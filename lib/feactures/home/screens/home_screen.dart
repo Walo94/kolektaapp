@@ -56,65 +56,87 @@ class _HomeScreenState extends State<HomeScreen> {
         child: RefreshIndicator(
           color: AppColors.primary,
           onRefresh: _loadStats,
-          child: SingleChildScrollView(
+          // ── CustomScrollView permite mezclar slivers normales
+          //    con un SliverPersistentHeader (sticky) ──────────
+          child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 20),
-                const _HomeHeader(),
-                const SizedBox(height: 32),
-                Text('Acciones rápidas',
-                    style: AppTextStyles.headingSmall
-                        .copyWith(color: c.textPrimary)),
-                const SizedBox(height: 16),
-                _QuickActions(
+            slivers: [
+              // ── 1. Header con saludo — hace scroll y desaparece ──
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 20),
+                      const _HomeHeader(),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── 2. "Acciones rápidas" — se queda fija al llegar al top ──
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _QuickActionsHeaderDelegate(
+                  backgroundColor: c.background,
                   onCreatePressed: () => _showCreateSheet(context),
                   onDonatePressed: () => _showDonateDialog(context),
                 ),
-                const SizedBox(height: 32),
-                Text('Tus herramientas',
-                    style: AppTextStyles.headingSmall
-                        .copyWith(color: c.textPrimary)),
-                const SizedBox(height: 12),
-                _ToolCard(
-                  iconPath: 'assets/images/batch.png',
-                  title: 'Tandas',
-                  subtitle:
-                      'Gestiona turnos y aportaciones grupales con facilidad',
-                  badgeText: _activeBatchBadge(activeBatchsCount),
-                  badgeColor: AppColors.primaryLight,
-                  buttonLabel: 'Gestionar',
-                  buttonColor: AppColors.primary,
-                  onTap: () => widget.onNavigate?.call(AppRoutes.batchs),
+              ),
+
+              // ── 3. Resto del contenido — pasa por debajo del sticky ──
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    const SizedBox(height: 32),
+                    Text(
+                      'Tus herramientas',
+                      style: AppTextStyles.headingSmall
+                          .copyWith(color: c.textPrimary),
+                    ),
+                    const SizedBox(height: 12),
+                    _ToolCard(
+                      iconPath: 'assets/images/batch.png',
+                      title: 'Tandas',
+                      subtitle:
+                          'Gestiona turnos y aportaciones grupales con facilidad',
+                      badgeText: _activeBatchBadge(activeBatchsCount),
+                      badgeColor: AppColors.primaryLight,
+                      buttonLabel: 'Gestionar',
+                      buttonColor: AppColors.primary,
+                      onTap: () => widget.onNavigate?.call(AppRoutes.batchs),
+                    ),
+                    const SizedBox(height: 12),
+                    _ToolCard(
+                      iconPath: 'assets/images/catalog.png',
+                      title: 'Catálogo',
+                      subtitle: 'Controla pedidos grupales y pagos pendientes',
+                      badgeText: _pendingCatalogBadge(pendingCount),
+                      badgeColor: AppColors.green,
+                      buttonLabel: 'Gestionar',
+                      buttonColor: AppColors.green,
+                      onTap: () => widget.onNavigate?.call(AppRoutes.catalogs),
+                    ),
+                    const SizedBox(height: 12),
+                    _ToolCard(
+                      iconPath: 'assets/images/giveaway.png',
+                      title: 'Rifas',
+                      subtitle:
+                          'Administra números, sorteos y ganadores fácilmente',
+                      badgeText: _openGiveawayBadge(openGiveawayCount),
+                      badgeColor: AppColors.pink,
+                      buttonLabel: 'Gestionar',
+                      buttonColor: AppColors.pink,
+                      onTap: () => widget.onNavigate?.call(AppRoutes.giveaways),
+                    ),
+                    const SizedBox(height: 40),
+                  ]),
                 ),
-                const SizedBox(height: 12),
-                _ToolCard(
-                  iconPath: 'assets/images/catalog.png',
-                  title: 'Catálogo',
-                  subtitle: 'Controla pedidos grupales y pagos pendientes',
-                  badgeText: _pendingCatalogBadge(pendingCount),
-                  badgeColor: AppColors.green,
-                  buttonLabel: 'Gestionar',
-                  buttonColor: AppColors.green,
-                  onTap: () => widget.onNavigate?.call(AppRoutes.catalogs),
-                ),
-                const SizedBox(height: 12),
-                _ToolCard(
-                  iconPath: 'assets/images/giveaway.png',
-                  title: 'Rifas',
-                  subtitle:
-                      'Administra números, sorteos y ganadores fácilmente',
-                  badgeText: _openGiveawayBadge(openGiveawayCount),
-                  badgeColor: AppColors.pink,
-                  buttonLabel: 'Gestionar',
-                  buttonColor: AppColors.pink,
-                  onTap: () => widget.onNavigate?.call(AppRoutes.giveaways),
-                ),
-                const SizedBox(height: 40),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -152,7 +174,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── Diálogo de donación ────────────────────────────────────────────────────
   void _showDonateDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -162,6 +183,73 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => const _DonateSheet(),
+    );
+  }
+}
+
+// ── Delegate para el sticky header de Acciones rápidas ──────────────────────
+//
+//  • minExtent == maxExtent → el bloque no colapsa (tamaño fijo).
+//  • pinned: true en SliverPersistentHeader → se queda fijo en el top
+//    una vez que el scroll lo alcanza; el contenido pasa por debajo.
+//  • El fondo coincide con c.background para que "tape" lo que queda atrás.
+
+class _QuickActionsHeaderDelegate extends SliverPersistentHeaderDelegate {
+  const _QuickActionsHeaderDelegate({
+    required this.backgroundColor,
+    required this.onCreatePressed,
+    required this.onDonatePressed,
+  });
+
+  final Color backgroundColor;
+  final VoidCallback onCreatePressed;
+  final VoidCallback onDonatePressed;
+
+  // 12 (top gap) + 23 (título) + 16 (gap) + 80 (íconos+label) + 16 (bottom padding) = 147
+  static const double _height = 147.0;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  bool shouldRebuild(_QuickActionsHeaderDelegate oldDelegate) =>
+      oldDelegate.backgroundColor != backgroundColor;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final c = context.kolekta;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        border: overlapsContent
+            ? Border(bottom: BorderSide(color: c.border, width: 1))
+            : null,
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Text(
+            'Acciones rápidas',
+            style: AppTextStyles.headingSmall.copyWith(color: c.textPrimary),
+          ),
+          const SizedBox(height: 16),
+          _QuickActions(
+            onCreatePressed: onCreatePressed,
+            onDonatePressed: onDonatePressed,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -221,7 +309,7 @@ class _QuickActions extends StatelessWidget {
         _QuickActionItem(
           iconPath: 'assets/images/paypal.png',
           label: 'Donar',
-          color: const Color(0xFFE8F0FB), // azul PayPal muy suave
+          color: const Color(0xFFE8F0FB),
           onTap: onDonatePressed,
         ),
         // Crear
@@ -342,17 +430,12 @@ class _DonateSheet extends StatefulWidget {
 }
 
 class _DonateSheetState extends State<_DonateSheet> {
-  // URL del hosted button (donación fija con monto libre)
   static const _webUrl = 'https://www.paypal.com/ncp/payment/XWEFC5NQBQT54';
-  // PayPal.Me — Android lo intercepta y abre la app si está instalada
   static const _appUrl = 'https://www.paypal.me/kolektaapp';
-  // Package name oficial de PayPal en Android
   static const _paypalPackage = 'com.paypal.android.p2pmobile';
 
   bool _isLoading = false;
 
-  /// Detecta si PayPal está instalado usando su package name.
-  /// Requiere <queries> en AndroidManifest.xml (ver instrucciones).
   Future<bool> _isPayPalInstalled() async {
     try {
       return await canLaunchUrl(
@@ -372,7 +455,6 @@ class _DonateSheetState extends State<_DonateSheet> {
     if (!mounted) return;
 
     if (hasApp) {
-      // Tiene la app → preguntar qué prefiere
       await showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -401,8 +483,7 @@ class _DonateSheetState extends State<_DonateSheet> {
               ),
               onPressed: () async {
                 Navigator.of(ctx).pop();
-                await launchUrl(webUri,
-                    mode: LaunchMode.externalApplication);
+                await launchUrl(webUri, mode: LaunchMode.externalApplication);
               },
               child: const Text('Abrir navegador',
                   style: TextStyle(color: Colors.white)),
@@ -411,7 +492,6 @@ class _DonateSheetState extends State<_DonateSheet> {
         ),
       );
     } else {
-      // No tiene la app → abrir navegador directamente
       setState(() => _isLoading = true);
       try {
         final launched =
@@ -443,7 +523,6 @@ class _DonateSheetState extends State<_DonateSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle
           Center(
             child: Container(
               width: 36,
@@ -455,8 +534,6 @@ class _DonateSheetState extends State<_DonateSheet> {
             ),
           ),
           const SizedBox(height: 24),
-
-          // Logo PayPal + título
           Container(
             width: 64,
             height: 64,
@@ -485,8 +562,6 @@ class _DonateSheetState extends State<_DonateSheet> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-
-          // Botón principal
           SizedBox(
             width: double.infinity,
             height: 52,
@@ -495,7 +570,8 @@ class _DonateSheetState extends State<_DonateSheet> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF003087),
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: const Color(0xFF003087).withOpacity(0.6),
+                disabledBackgroundColor:
+                    const Color(0xFF003087).withOpacity(0.6),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),

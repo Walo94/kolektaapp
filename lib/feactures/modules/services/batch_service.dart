@@ -247,14 +247,14 @@ class BatchService {
   // ── GET /batchs ───────────────────────────────────────
   static Future<Map<String, dynamic>> listBatchs({
     required String token,
-    BatchStatus? status,        // ← NUEVO: filtro por status
+    BatchStatus? status, // ← NUEVO: filtro por status
     int limit = 20,
     int offset = 0,
   }) async {
     final params = {
       'limit': limit.toString(),
       'offset': offset.toString(),
-      if (status != null) 'status': status.apiValue,   // ← se usará el apiValue
+      if (status != null) 'status': status.apiValue, // ← se usará el apiValue
     };
 
     final uri = Uri.parse('$_base/batchs').replace(queryParameters: params);
@@ -493,14 +493,14 @@ class BatchService {
       'offset': offset.toString(),
       if (statusGroup != null) 'status': statusGroup,
     };
- 
+
     final uri =
         Uri.parse('$_base/batchs/search').replace(queryParameters: params);
- 
+
     final response = await http
         .get(uri, headers: _headers(token))
         .timeout(const Duration(seconds: 15));
- 
+
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     if (response.statusCode == 200) {
       return body;

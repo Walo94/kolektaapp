@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:kolekta/feactures/modules/batchs/screens/create_batch_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -411,7 +413,6 @@ class _BatchList extends StatelessWidget {
 }
 
 // ── Tarjeta de tanda ──────────────────────────────────────
-// (se mantiene idéntica al original — solo se mueve aquí para completitud)
 
 class _BatchCard extends StatefulWidget {
   const _BatchCard({
@@ -576,9 +577,23 @@ class _BatchCardState extends State<_BatchCard> {
     );
   }
 
+  // ── Edit sheet ────────────────────────────────────────────
+
   void _showEditSheet(BuildContext context) {
-    // Mantén tu implementación original aquí
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _EditBatchSheet(
+        batch: batch,
+        onSaved: () async {
+          await onRefresh();
+        },
+      ),
+    );
   }
+
+  // ── Confirmar cancelar ────────────────────────────────────
 
   Future<void> _confirmCancel(BuildContext context) async {
     final c = context.kolekta;
@@ -635,6 +650,8 @@ class _BatchCardState extends State<_BatchCard> {
       ));
     }
   }
+
+  // ── Confirmar eliminar ────────────────────────────────────
 
   Future<void> _confirmDelete(BuildContext context) async {
     final c = context.kolekta;
@@ -839,6 +856,409 @@ class _BatchCardState extends State<_BatchCard> {
             ),
           ),
       ],
+    );
+  }
+}
+
+// ── Sheet de edición ──────────────────────────────────────
+
+class _EditBatchSheet extends StatefulWidget {
+  const _EditBatchSheet({
+    required this.batch,
+    required this.onSaved,
+  });
+
+  final Batch batch;
+  final VoidCallback onSaved;
+
+  @override
+  State<_EditBatchSheet> createState() => _EditBatchSheetState();
+}
+
+class _EditBatchSheetState extends State<_EditBatchSheet> {
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _notesCtrl;
+
+  File? _newImageFile;
+  bool _removeCoverImage = false;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.batch.name);
+    _notesCtrl = TextEditingController(text: widget.batch.notes ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  // ── Selección de imagen ──────────────────────────────────
+
+  Future<void> _pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: source,
+      imageQuality: 80,
+      maxWidth: 1200,
+    );
+    if (picked == null) return;
+    setState(() {
+      _newImageFile = File(picked.path);
+      _removeCoverImage = false;
+    });
+  }
+
+  void _removeImage() {
+    setState(() {
+      _newImageFile = null;
+      _removeCoverImage = true;
+    });
+  }
+
+  void _showImageOptions() {
+    final c = context.kolekta;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: c.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: c.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _SheetOption(
+                icon: Icons.camera_alt_outlined,
+                iconBg: AppColors.primarySurface,
+                iconColor: AppColors.primary,
+                label: 'Tomar foto',
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              _SheetOption(
+                icon: Icons.photo_library_outlined,
+                iconBg: AppColors.primarySurface,
+                iconColor: AppColors.primary,
+                label: 'Elegir de galería',
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+              if (widget.batch.coverImage != null || _newImageFile != null)
+                _SheetOption(
+                  icon: Icons.delete_outline_rounded,
+                  iconBg: AppColors.error.withOpacity(0.1),
+                  iconColor: AppColors.error,
+                  label: 'Eliminar imagen',
+                  labelColor: AppColors.error,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _removeImage();
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Guardar ──────────────────────────────────────────────
+
+  Future<void> _save() async {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('El nombre no puede estar vacío'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      return;
+    }
+
+    final token = context.read<AuthProvider>().token ?? '';
+    setState(() => _loading = true);
+
+    try {
+      await BatchService.updateBatch(
+        token: token,
+        batchId: widget.batch.id,
+        name: name,
+        notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+        coverImageFile: _newImageFile,
+        removeCoverImage: _removeCoverImage,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Tanda actualizada'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      widget.onSaved();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    }
+  }
+
+  // ── UI ───────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.kolekta;
+    final mq = MediaQuery.of(context);
+    final hasImage = _newImageFile != null ||
+        (widget.batch.coverImage != null && !_removeCoverImage);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 16,
+        bottom: mq.viewInsets.bottom + 24,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Handle ────────────────────────────────────
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: c.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Título ────────────────────────────────────
+            Text(
+              'Editar tanda',
+              style: AppTextStyles.headingSmall.copyWith(color: c.textPrimary),
+            ),
+            const SizedBox(height: 20),
+
+            // ── Imagen de portada ─────────────────────────
+            GestureDetector(
+              onTap: _showImageOptions,
+              child: Container(
+                height: 140,
+                decoration: BoxDecoration(
+                  color: c.background,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: c.border),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (_newImageFile != null)
+                      Image.file(_newImageFile!, fit: BoxFit.cover)
+                    else if (widget.batch.coverImage != null &&
+                        !_removeCoverImage)
+                      Image.network(
+                        widget.batch.coverImage!,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (_, child, prog) => prog == null
+                            ? child
+                            : const Center(child: CircularProgressIndicator()),
+                        errorBuilder: (_, __, ___) => const Center(
+                            child: Icon(Icons.broken_image_outlined, size: 40)),
+                      )
+                    else
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_photo_alternate_outlined,
+                              size: 36, color: c.textHint),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Agregar imagen',
+                            style: AppTextStyles.bodySmall
+                                .copyWith(color: c.textHint),
+                          ),
+                        ],
+                      ),
+                    // Botón editar superpuesto cuando hay imagen
+                    if (hasImage)
+                      Positioned(
+                        bottom: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.55),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.edit_outlined,
+                                  size: 13, color: Colors.white),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Cambiar',
+                                style: AppTextStyles.labelSmall
+                                    .copyWith(color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // ── Nombre ────────────────────────────────────
+            Text('Nombre',
+                style:
+                    AppTextStyles.labelMedium.copyWith(color: c.textSecondary)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _nameCtrl,
+              style: AppTextStyles.bodyMedium.copyWith(color: c.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Nombre de la tanda',
+                hintStyle: AppTextStyles.bodyMedium.copyWith(color: c.textHint),
+                filled: true,
+                fillColor: c.background,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: c.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: c.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide:
+                      const BorderSide(color: AppColors.primary, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // ── Notas ─────────────────────────────────────
+            Text('Notas (opcional)',
+                style:
+                    AppTextStyles.labelMedium.copyWith(color: c.textSecondary)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _notesCtrl,
+              maxLines: 3,
+              style: AppTextStyles.bodyMedium.copyWith(color: c.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Agrega observaciones…',
+                hintStyle: AppTextStyles.bodyMedium.copyWith(color: c.textHint),
+                filled: true,
+                fillColor: c.background,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: c.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: c.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide:
+                      const BorderSide(color: AppColors.primary, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // ── Botón guardar ─────────────────────────────
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _loading ? null : _save,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  disabledBackgroundColor: AppColors.primary.withOpacity(0.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                child: _loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Text(
+                        'Guardar cambios',
+                        style: AppTextStyles.labelLarge
+                            .copyWith(color: Colors.white),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

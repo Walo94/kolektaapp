@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/kolekta_colors.dart';
@@ -76,7 +77,8 @@ class _ProductsHomeScreenState extends State<ProductsHomeScreen> {
 
   void _goToEdit(Product product) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => ProductFormScreen(productToEdit: product)),
+      MaterialPageRoute(
+          builder: (_) => ProductFormScreen(productToEdit: product)),
     );
   }
 
@@ -147,7 +149,8 @@ class _ProductsHomeScreenState extends State<ProductsHomeScreen> {
                   ),
                   decoration: InputDecoration(
                     hintText: 'Buscar producto…',
-                    hintStyle: AppTextStyles.bodySmall.copyWith(color: c.textHint),
+                    hintStyle:
+                        AppTextStyles.bodySmall.copyWith(color: c.textHint),
                     prefixIcon:
                         Icon(Icons.search_rounded, color: c.textHint, size: 20),
                     suffixIcon: _searchCtrl.text.isNotEmpty
@@ -238,7 +241,8 @@ class _ProductsHomeScreenState extends State<ProductsHomeScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.inventory_2_outlined, size: 64, color: c.textHint),
+                    Icon(Icons.inventory_2_outlined,
+                        size: 64, color: c.textHint),
                     const SizedBox(height: 16),
                     Text(
                       prov.searchQuery.isEmpty
@@ -253,8 +257,8 @@ class _ProductsHomeScreenState extends State<ProductsHomeScreen> {
                         padding: const EdgeInsets.only(top: 6),
                         child: Text(
                           'Toca + para agregar un producto',
-                          style:
-                              AppTextStyles.bodySmall.copyWith(color: c.textHint),
+                          style: AppTextStyles.bodySmall
+                              .copyWith(color: c.textHint),
                         ),
                       ),
                   ],
@@ -345,14 +349,16 @@ class _ProductCard extends StatelessWidget {
               // Nombre del producto
               Text(
                 product.description,
-                style: AppTextStyles.headingSmall.copyWith(color: c.textPrimary),
+                style:
+                    AppTextStyles.headingSmall.copyWith(color: c.textPrimary),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 4),
               Text(
-                '\$${product.price.toStringAsFixed(2)}',
+                NumberFormat.currency(locale: 'en_US', symbol: '\$')
+                    .format(product.price),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -415,7 +421,8 @@ class _ProductCard extends StatelessWidget {
             onPressed: () => Navigator.pop(ctx),
             child: Text(
               'No, volver',
-              style: AppTextStyles.buttonMedium.copyWith(color: c.textSecondary),
+              style:
+                  AppTextStyles.buttonMedium.copyWith(color: c.textSecondary),
             ),
           ),
           ElevatedButton(
@@ -476,13 +483,15 @@ class _ProductCard extends StatelessWidget {
                 children: [
                   Text(
                     product.description,
-                    style: AppTextStyles.labelLarge.copyWith(color: c.textPrimary),
+                    style:
+                        AppTextStyles.labelLarge.copyWith(color: c.textPrimary),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '\$${product.price.toStringAsFixed(2)}',
+                    NumberFormat.currency(locale: 'en_US', symbol: '\$')
+                        .format(product.price),
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -595,8 +604,8 @@ class _SafeNetworkImage extends StatelessWidget {
           height: height,
           color: c.surfaceVariant,
           child: const Center(
-            child:
-                CircularProgressIndicator(strokeWidth: 2, color: AppColors.green),
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: AppColors.green),
           ),
         );
       },

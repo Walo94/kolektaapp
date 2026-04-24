@@ -37,8 +37,11 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
 
   bool get _isEdit => widget.saleToEdit != null;
 
-  double get _totalAmount =>
-      _items.fold(0.0, (sum, i) => sum + i.subtotal);
+  double get _totalAmount => _items.fold(0.0, (sum, i) => sum + i.subtotal);
+
+  /// Formatea un monto con separador de miles y 2 decimales. Ej: $1,300.00
+  static String _fmt(double amount) =>
+      NumberFormat.currency(locale: 'en_US', symbol: '\$').format(amount);
 
   @override
   void initState() {
@@ -176,13 +179,7 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_items.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Agrega al menos un producto a la venta'),
-        backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ));
+      _showError('Agrega al menos un producto a la venta');
       return;
     }
 
@@ -220,17 +217,21 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
     if (!mounted) return;
 
     if (ok) {
-      Navigator.of(context).pop();
+      // ✅ Retornar true para indicar éxito
+      Navigator.of(context).pop(true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(prov.errorMessage ?? 'Error al guardar'),
-        backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ));
+      _showError(prov.errorMessage ?? 'Error al guardar');
     }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message),
+      backgroundColor: AppColors.error,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      margin: const EdgeInsets.all(16),
+    ));
   }
 
   @override
@@ -249,8 +250,7 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
         ),
         title: Text(
           _isEdit ? 'Editar venta' : 'Nueva venta',
-          style:
-              AppTextStyles.headingSmall.copyWith(color: c.textPrimary),
+          style: AppTextStyles.headingSmall.copyWith(color: c.textPrimary),
         ),
         centerTitle: true,
       ),
@@ -311,29 +311,28 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
 
             // ── Datos de la venta ────────────────────────────────────────
             Text('Venta',
-                style: AppTextStyles.labelMedium
-                    .copyWith(color: c.textSecondary)),
+                style:
+                    AppTextStyles.labelMedium.copyWith(color: c.textSecondary)),
             const SizedBox(height: 8),
             KolektaTextField(
               controller: _titleCtrl,
               hint: 'Título de la venta *',
               prefixIcon: Icons.label_outline_rounded,
-              validator: (v) =>
-                  v!.trim().isEmpty ? 'Ingresa un título' : null,
+              validator: (v) => v!.trim().isEmpty ? 'Ingresa un título' : null,
             ),
 
             const SizedBox(height: 20),
 
             // ── Fecha ────────────────────────────────────────────────────
             Text('Fecha de la venta',
-                style: AppTextStyles.labelMedium
-                    .copyWith(color: c.textSecondary)),
+                style:
+                    AppTextStyles.labelMedium.copyWith(color: c.textSecondary)),
             const SizedBox(height: 8),
             GestureDetector(
               onTap: _isEdit ? null : _pickDate,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   color: c.surface,
                   borderRadius: BorderRadius.circular(14),
@@ -369,16 +368,16 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
                 const Spacer(),
                 TextButton.icon(
                   onPressed: _pickProducts,
-                  icon: Icon(Icons.add_rounded,
-                      size: 16, color: AppColors.green),
+                  icon:
+                      Icon(Icons.add_rounded, size: 16, color: AppColors.green),
                   label: Text(
                     _items.isEmpty ? 'Agregar' : 'Editar',
                     style: AppTextStyles.labelSmall
                         .copyWith(color: AppColors.green),
                   ),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                 ),
@@ -427,8 +426,7 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
                       final i = entry.key;
                       final item = entry.value;
                       final isLast = i == _items.length - 1;
-                      final products =
-                          context.read<ProductProvider>().products;
+                      final products = context.read<ProductProvider>().products;
                       final liveProduct = item.productId != null
                           ? products
                               .where((p) => p.id == item.productId)
@@ -440,8 +438,7 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
                           _SaleItemRow(
                             item: item,
                             liveImageUrl: liveProduct?.imageUrl,
-                            onRemove: () =>
-                                setState(() => _items.removeAt(i)),
+                            onRemove: () => setState(() => _items.removeAt(i)),
                             onQuantityChanged: (q) {
                               if (q <= 0) {
                                 setState(() => _items.removeAt(i));
@@ -460,8 +457,8 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
               const SizedBox(height: 8),
               // Total
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: c.greenLight,
                   borderRadius: BorderRadius.circular(12),
@@ -473,7 +470,7 @@ class _CreateSaleScreenState extends State<CreateSaleScreen> {
                         style: AppTextStyles.labelMedium
                             .copyWith(color: AppColors.green)),
                     Text(
-                      '\$${_totalAmount.toStringAsFixed(2)}',
+                      _fmt(_totalAmount),
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -515,6 +512,7 @@ class _SaleItemRow extends StatelessWidget {
   final SelectedSaleItem item;
   final VoidCallback onRemove;
   final ValueChanged<int> onQuantityChanged;
+
   /// URL de la imagen obtenida del producto vivo (null si fue eliminado o es libre)
   final String? liveImageUrl;
 
@@ -578,9 +576,9 @@ class _SaleItemRow extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  '\$${item.unitPrice.toStringAsFixed(2)} × ${item.quantity} = \$${item.subtotal.toStringAsFixed(2)}',
-                  style: AppTextStyles.labelSmall
-                      .copyWith(color: AppColors.green),
+                  '${NumberFormat.currency(locale: 'en_US', symbol: '\$').format(item.unitPrice)} × ${item.quantity} = ${NumberFormat.currency(locale: 'en_US', symbol: '\$').format(item.subtotal)}',
+                  style:
+                      AppTextStyles.labelSmall.copyWith(color: AppColors.green),
                 ),
               ],
             ),

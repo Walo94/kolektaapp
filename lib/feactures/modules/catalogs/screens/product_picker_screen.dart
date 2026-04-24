@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/kolekta_colors.dart';
+import '../../../../shared/widgets/kolekta_pagination.dart';
 import '../../../admin/providers/auth_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../services/product_service.dart';
@@ -55,6 +57,7 @@ class _ProductPickerScreenState extends State<ProductPickerScreen> {
   final _searchCtrl = TextEditingController();
   final List<SelectedSaleItem> _selected = [];
   bool _showFreeForm = false;
+  bool _loadingMore = false;
 
   @override
   void initState() {
@@ -78,6 +81,14 @@ class _ProductPickerScreenState extends State<ProductPickerScreen> {
   Future<void> _onSearch(String query) async {
     final token = context.read<AuthProvider>().token ?? '';
     await context.read<ProductProvider>().setSearch(token, query);
+  }
+
+  Future<void> _loadMore() async {
+    final token = context.read<AuthProvider>().token ?? '';
+    if (token.isEmpty) return;
+    setState(() => _loadingMore = true);
+    await context.read<ProductProvider>().loadMore(token);
+    if (mounted) setState(() => _loadingMore = false);
   }
 
   void _addProduct(Product product) {
@@ -344,24 +355,33 @@ class _ProductPickerScreenState extends State<ProductPickerScreen> {
 
                 return ListView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  itemCount: prov.products.length,
+                  itemCount: prov.products.length + 1,
                   itemBuilder: (_, i) {
-                    final product = prov.products[i];
-                    final selectedIdx =
-                        _selected.indexWhere((s) => s.productId == product.id);
-                    final isSelected = selectedIdx != -1;
+                    if (i < prov.products.length) {
+                      final product = prov.products[i];
+                      final selectedIdx = _selected
+                          .indexWhere((s) => s.productId == product.id);
+                      final isSelected = selectedIdx != -1;
 
-                    return _CatalogProductTile(
-                      product: product,
-                      isSelected: isSelected,
-                      quantity:
-                          isSelected ? _selected[selectedIdx].quantity : 0,
-                      onAdd: () => _addProduct(product),
-                      onRemove:
-                          isSelected ? () => _removeItem(selectedIdx) : null,
-                      onQuantityChanged: isSelected
-                          ? (q) => _updateQuantity(selectedIdx, q)
-                          : null,
+                      return _CatalogProductTile(
+                        product: product,
+                        isSelected: isSelected,
+                        quantity:
+                            isSelected ? _selected[selectedIdx].quantity : 0,
+                        onAdd: () => _addProduct(product),
+                        onRemove:
+                            isSelected ? () => _removeItem(selectedIdx) : null,
+                        onQuantityChanged: isSelected
+                            ? (q) => _updateQuantity(selectedIdx, q)
+                            : null,
+                      );
+                    }
+                    return KolektaPagination(
+                      loaded: prov.products.length,
+                      total: prov.total,
+                      hasMore: prov.hasMore,
+                      isLoading: _loadingMore,
+                      onLoadMore: _loadMore,
                     );
                   },
                 );
@@ -469,8 +489,9 @@ class _CatalogProductTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  '\$${product.price.toStringAsFixed(2)}',
-                  style: TextStyle(
+                  NumberFormat.currency(locale: 'en_US', symbol: '\$')
+                      .format(product.price),
+                  style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: AppColors.green,

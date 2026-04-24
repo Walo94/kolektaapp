@@ -207,11 +207,21 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
                 IconButton(
                   icon: Icon(Icons.edit_outlined,
                       color: c.textSecondary, size: 20),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => CreateSaleScreen(saleToEdit: sale),
-                    ),
-                  ),
+                  onPressed: () async {
+                    // Esperar resultado de la edición
+                    final result = await Navigator.of(context).push<bool>(
+                      MaterialPageRoute(
+                        builder: (_) => CreateSaleScreen(saleToEdit: sale),
+                      ),
+                    );
+
+                    // Recargar si hubo cambios
+                    if (result == true && mounted) {
+                      await _load();
+                      _showSnack('Venta actualizada correctamente',
+                          isInfo: true);
+                    }
+                  },
                 ),
             ],
           ),
